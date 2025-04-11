@@ -8,6 +8,10 @@ const error = ref(null);
 const backendUrl = "http://localhost:3000";
 const showAddModal = ref(false);
 
+const currentFilter = ref("all");
+const sortBy = ref("createdAt");
+const sortDirection = ref("desc");
+
 async function fetchTodos() {
   loading.value = true;
   error.value = null;
@@ -65,7 +69,46 @@ async function deleteTodo(id) {
 
 onMounted(fetchTodos);
 
-const filteredAndSortedTodos = computed(() => todos.value);
+const filteredAndSortedTodos = computed(() => {
+  let result = [...todos.value];
+
+  if (currentFilter.value === "incomplete") {
+    result = result.filter((todo) => !todo.isCompleted);
+  } else if (currentFilter.value === "completed") {
+    result = result.filter((todo) => todo.isCompleted);
+  }
+
+  result.sort((a, b) => {
+    let valA, valB;
+
+    if (sortBy.value === "dueDate") {
+      valA = a.dueDate
+        ? new Date(a.dueDate + "T00:00:00")
+        : sortDirection.value === "asc"
+        ? Infinity
+        : -Infinity;
+      valB = b.dueDate
+        ? new Date(b.dueDate + "T00:00:00")
+        : sortDirection.value === "asc"
+        ? Infinity
+        : -Infinity;
+    } else {
+      valA = new Date(a.createdAt);
+      valB = new Date(b.createdAt);
+    }
+
+    let comparison = 0;
+    if (valA < valB) {
+      comparison = -1;
+    } else if (valA > valB) {
+      comparison = 1;
+    }
+
+    return sortDirection.value === "desc" ? comparison * -1 : comparison;
+  });
+
+  return result;
+});
 </script>
 
 <template>
