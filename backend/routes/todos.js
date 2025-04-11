@@ -116,4 +116,25 @@ router.patch("/:id", async (req, res) => {
   }
 });
 
+router.delete("/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const todos = await readTodos();
+    const initialLength = todos.length;
+
+    const filteredTodos = todos.filter((t) => t.id !== id);
+
+    if (filteredTodos.length === initialLength) {
+      return res.status(404).json({ message: "Todo not found" });
+    }
+
+    await writeTodos(filteredTodos);
+
+    res.status(204).send();
+  } catch (error) {
+    console.error("Error deleting todo:", error);
+    res.status(500).json({ message: "Failed to delete todo" });
+  }
+});
+
 module.exports = router;
