@@ -23,6 +23,18 @@ async function fetchTodos() {
   }
 }
 
+async function addTodo(payload) {
+  error.value = null;
+  try {
+    const response = await axios.post(`${backendUrl}/todos`, payload);
+    todos.value.unshift(response.data);
+    showAddModal.value = false;
+  } catch (err) {
+    console.error("Error adding todo:", err);
+    error.value = err.response?.data?.message || "Failed to add todo. Please try again.";
+  }
+}
+
 onMounted(fetchTodos);
 
 const filteredAndSortedTodos = computed(() => todos.value);
