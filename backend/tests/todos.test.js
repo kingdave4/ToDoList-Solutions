@@ -70,3 +70,90 @@ describe("Todo API - GET Endpoints", () => {
     });
   });
 });
+
+describe("Todo API - POST Endpoint", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    dataService.readTodos.mockResolvedValue([]);
+    dataService.writeTodos.mockResolvedValue();
+  });
+
+  describe("POST /todos", () => {
+    it("should create a new todo and return it", async () => {
+      const newTodoData = { title: "  New Task  ", description: "Details", dueDate: "2025-12-31" };
+      const expectedSavedTodo = {
+        id: expect.any(String),
+        title: "New Task",
+        description: "Details",
+        dueDate: "2025-12-31",
+        isCompleted: false,
+        createdAt: expect.any(String),
+      };
+
+      const res = await request(app).post("/todos").send(newTodoData);
+
+      expect(res.statusCode).toEqual(201);
+      expect(res.body).toMatchObject(expectedSavedTodo);
+      expect(dataService.readTodos).toHaveBeenCalledTimes(1);
+      expect(dataService.writeTodos).toHaveBeenCalledTimes(1);
+      expect(dataService.writeTodos).toHaveBeenCalledWith([
+        expect.objectContaining(expectedSavedTodo),
+      ]);
+    });
+
+    it("should create a todo with minimal data (only title)", async () => {
+      const newTodoData = { title: "Minimal Task" };
+      const expectedSavedTodo = {
+        id: expect.any(String),
+        title: "Minimal Task",
+        description: "",
+        dueDate: null,
+        isCompleted: false,
+        createdAt: expect.any(String),
+      };
+
+      const res = await request(app).post("/todos").send(newTodoData);
+
+      expect(res.statusCode).toEqual(201);
+      expect(res.body).toMatchObject(expectedSavedTodo);
+      expect(dataService.writeTodos).toHaveBeenCalledWith([
+        expect.objectContaining(expectedSavedTodo),
+      ]);
+    });
+
+    it("should return 400 if title is missing", async () => {
+      const newTodoData = { description: "No title" };
+      const res = await request(app).post("/todos").send(newTodoData);
+
+      expect(res.statusCode).toEqual(400);
+      expect(res.body).toEqual({ message: "Title is required and must be a non-empty string" });
+      expect(dataService.writeTodos).not.toHaveBeenCalled();
+    });
+
+    it("should return 400 if title is an empty string", async () => {
+      const newTodoData = { title: "" };
+      const res = await request(app).post("/todos").send(newTodoData);
+
+      expect(res.statusCode).toEqual(400);
+      expect(res.body).toEqual({ message: "Title is required and must be a non-empty string" });
+    });
+
+    it("should return 400 if title is just whitespace", async () => {
+      const newTodoData = { title: "   " };
+      const res = await request(app).post("/todos").send(newTodoData);
+
+      expect(res.statusCode).toEqual(400);
+      expect(res.body).toEqual({ message: "Title is required and must be a non-empty string" });
+    });
+
+    it("should return 500 if writing todos fails", async () => {
+      dataService.writeTodos.mockRejectedValue(new Error("Write error"));
+      const newTodoData = { title: "Valid Task" };
+
+      const res = await request(app).post("/todos").send(newTodoData);
+
+      expect(res.statusCode).toEqual(500);
+      expect(res.body).toEqual({ message: "Failed to create todo" });
+    });
+  });
+});
