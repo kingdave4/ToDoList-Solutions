@@ -338,3 +338,57 @@ describe("Todo API - PUT/PATCH Endpoints", () => {
     });
   });
 });
+
+describe("Todo API - DELETE Endpoint", () => {
+  let mockTodos;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockTodos = [
+      { id: "1", title: "To Delete", isCompleted: false },
+      { id: "2", title: "To Keep", isCompleted: true },
+    ];
+    dataService.readTodos.mockResolvedValue(mockTodos);
+    dataService.writeTodos.mockResolvedValue();
+  });
+
+  describe("DELETE /todos/:id", () => {
+    it("should delete a todo and return 204", async () => {
+      const res = await request(app).delete("/todos/1");
+
+      expect(res.statusCode).toEqual(204);
+      expect(res.body).toEqual({}); // No content on success
+      expect(dataService.readTodos).toHaveBeenCalledTimes(1);
+      expect(dataService.writeTodos).toHaveBeenCalledTimes(1);
+      // Check that writeTodos was called with the correct remaining todo
+      expect(dataService.writeTodos).toHaveBeenCalledWith([mockTodos[1]]);
+    });
+
+    it("should return 404 if todo to delete is not found", async () => {
+      const res = await request(app).delete("/todos/999"); // Non-existent ID
+
+      expect(res.statusCode).toEqual(404);
+      expect(res.body).toEqual({ message: "Todo not found" });
+      expect(dataService.readTodos).toHaveBeenCalledTimes(1);
+      expect(dataService.writeTodos).not.toHaveBeenCalled();
+    });
+
+    it("should return 500 if reading todos fails during delete", async () => {
+      dataService.readTodos.mockRejectedValue(new Error("Read error"));
+      const res = await request(app).delete("/todos/1");
+
+      expect(res.statusCode).toEqual(500);
+      expect(res.body).toEqual({ message: "Failed to delete todo" });
+      expect(dataService.writeTodos).not.toHaveBeenCalled();
+    });
+
+    it("should return 500 if writing todos fails during delete", async () => {
+      dataService.writeTodos.mockRejectedValue(new Error("Write error"));
+      const res = await request(app).delete("/todos/1");
+
+      expect(res.statusCode).toEqual(500);
+      expect(res.body).toEqual({ message: "Failed to delete todo" });
+      expect(dataService.writeTodos).toHaveBeenCalledTimes(1); // Write was attempted
+    });
+  });
+});
