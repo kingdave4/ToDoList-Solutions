@@ -88,4 +88,32 @@ router.put("/:id", async (req, res) => {
   }
 });
 
+router.patch("/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { isCompleted } = req.body;
+
+    if (typeof isCompleted !== "boolean") {
+      return res.status(400).json({ message: "isCompleted must be a boolean value" });
+    }
+
+    const todos = await readTodos();
+    const todoIndex = todos.findIndex((t) => t.id === id);
+
+    if (todoIndex === -1) {
+      return res.status(404).json({ message: "Todo not found" });
+    }
+
+    todos[todoIndex].isCompleted = isCompleted;
+    const updatedTodo = todos[todoIndex];
+
+    await writeTodos(todos);
+
+    res.json(updatedTodo);
+  } catch (error) {
+    console.error("Error updating todo completion status:", error);
+    res.status(500).json({ message: "Failed to update todo completion status" });
+  }
+});
+
 module.exports = router;
