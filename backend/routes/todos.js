@@ -41,4 +41,20 @@ router.post("/", async (req, res) => {
   }
 });
 
+router.get("/:id", async (req, res) => {
+  try {
+    const todos = await readTodos();
+    const todo = todos.find((t) => t.id === req.params.id);
+
+    if (!todo) {
+      return res.status(404).json({ message: "Todo not found" });
+    }
+
+    res.json(todo);
+  } catch (error) {
+    console.error("Error retrieving todo:", error);
+    res.status(500).json({ message: "Failed to retrieve todo" });
+  }
+});
+
 module.exports = router;
