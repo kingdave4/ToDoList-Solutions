@@ -1,6 +1,9 @@
 <script setup>
 import { ref, onMounted, computed } from "vue";
 import axios from "axios";
+import TodoItem from "./components/TodoItem.vue";
+import AddTodoModal from "./components/AddTodoModal.vue";
+import TodoControls from "./components/TodoControls.vue";
 
 const todos = ref([]);
 const loading = ref(false);
@@ -119,12 +122,30 @@ const filteredAndSortedTodos = computed(() => {
       <button @click="showAddModal = true" class="add-todo-btn">
         <span class="plus-icon">+</span> Add Todo
       </button>
+      <TodoControls
+        v-model:currentFilter="currentFilter"
+        v-model:sortBy="sortBy"
+        v-model:sortDirection="sortDirection"
+      />
     </div>
+
+    <AddTodoModal
+      :show-modal="showAddModal"
+      @close-modal="showAddModal = false"
+      @add-todo="addTodo"
+    />
 
     <div v-if="loading" class="loading-msg">Loading tasks...</div>
     <div v-if="error" class="error">{{ error }}</div>
 
     <ul v-if="!loading && !error" class="todo-list">
+      <TodoItem
+        v-for="todo in filteredAndSortedTodos"
+        :key="todo.id"
+        :todo="todo"
+        @toggle-complete="toggleComplete"
+        @delete-todo="deleteTodo"
+      />
       <li v-if="filteredAndSortedTodos.length === 0 && !loading" class="no-tasks">
         {{
           todos.length > 0 ? "No tasks match the current filter." : "No tasks yet! Add one above."
