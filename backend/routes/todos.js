@@ -57,4 +57,35 @@ router.get("/:id", async (req, res) => {
   }
 });
 
+router.put("/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, description, dueDate } = req.body;
+
+    if (title !== undefined && (typeof title !== "string" || title.trim() === "")) {
+      return res.status(400).json({ message: "Title must be a non-empty string" });
+    }
+
+    const todos = await readTodos();
+    const todoIndex = todos.findIndex((t) => t.id === id);
+
+    if (todoIndex === -1) {
+      return res.status(404).json({ message: "Todo not found" });
+    }
+
+    const updatedTodo = { ...todos[todoIndex] };
+    if (title !== undefined) updatedTodo.title = title.trim();
+    if (description !== undefined) updatedTodo.description = description;
+    if (dueDate !== undefined) updatedTodo.dueDate = dueDate;
+
+    todos[todoIndex] = updatedTodo;
+    await writeTodos(todos);
+
+    res.json(updatedTodo);
+  } catch (error) {
+    console.error("Error updating todo:", error);
+    res.status(500).json({ message: "Failed to update todo" });
+  }
+});
+
 module.exports = router;
