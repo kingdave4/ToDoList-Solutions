@@ -12,7 +12,6 @@ async function readTodos() {
       return [];
     }
     if (error instanceof SyntaxError) {
-      console.error("Error parsing todos.json:", error);
       return [];
     }
     throw error;
@@ -24,7 +23,6 @@ async function writeTodos(todos) {
     await fs.mkdir(path.dirname(TODOS_FILE), { recursive: true });
     await fs.writeFile(TODOS_FILE, JSON.stringify(todos, null, 2), "utf-8");
   } catch (error) {
-    console.error("Error writing to todos.json:", error);
     throw error;
   }
 }

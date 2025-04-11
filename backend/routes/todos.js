@@ -8,7 +8,6 @@ router.get("/", async (req, res) => {
     const todos = await readTodos();
     res.json(todos);
   } catch (error) {
-    console.error("Error reading todos:", error);
     res.status(500).json({ message: "Failed to retrieve todos" });
   }
 });
@@ -36,7 +35,6 @@ router.post("/", async (req, res) => {
 
     res.status(201).json(newTodo);
   } catch (error) {
-    console.error("Error creating todo:", error);
     res.status(500).json({ message: "Failed to create todo" });
   }
 });
@@ -52,7 +50,6 @@ router.get("/:id", async (req, res) => {
 
     res.json(todo);
   } catch (error) {
-    console.error("Error retrieving todo:", error);
     res.status(500).json({ message: "Failed to retrieve todo" });
   }
 });
@@ -83,7 +80,6 @@ router.put("/:id", async (req, res) => {
 
     res.json(updatedTodo);
   } catch (error) {
-    console.error("Error updating todo:", error);
     res.status(500).json({ message: "Failed to update todo" });
   }
 });
@@ -111,7 +107,6 @@ router.patch("/:id", async (req, res) => {
 
     res.json(updatedTodo);
   } catch (error) {
-    console.error("Error updating todo completion status:", error);
     res.status(500).json({ message: "Failed to update todo completion status" });
   }
 });
@@ -132,7 +127,6 @@ router.delete("/:id", async (req, res) => {
 
     res.status(204).send();
   } catch (error) {
-    console.error("Error deleting todo:", error);
     res.status(500).json({ message: "Failed to delete todo" });
   }
 });
