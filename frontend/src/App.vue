@@ -1,5 +1,31 @@
 <script setup>
 import { ref, onMounted, computed } from "vue";
+import axios from "axios";
+
+const todos = ref([]);
+const loading = ref(false);
+const error = ref(null);
+const backendUrl = "http://localhost:3000";
+const showAddModal = ref(false);
+
+async function fetchTodos() {
+  loading.value = true;
+  error.value = null;
+  try {
+    const response = await axios.get(`${backendUrl}/todos`);
+    todos.value = response.data;
+  } catch (err) {
+    console.error("Error fetching todos:", err);
+    error.value = "Failed to load todos. Please ensure the backend is running.";
+    todos.value = [];
+  } finally {
+    loading.value = false;
+  }
+}
+
+onMounted(fetchTodos);
+
+const filteredAndSortedTodos = computed(() => todos.value);
 </script>
 
 <template>
