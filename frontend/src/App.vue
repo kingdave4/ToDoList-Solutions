@@ -35,6 +35,34 @@ async function addTodo(payload) {
   }
 }
 
+async function toggleComplete(todo) {
+  error.value = null;
+  try {
+    const updatedStatus = !todo.isCompleted;
+    const response = await axios.patch(`${backendUrl}/todos/${todo.id}`, {
+      isCompleted: updatedStatus,
+    });
+    const index = todos.value.findIndex((t) => t.id === todo.id);
+    if (index !== -1) {
+      todos.value[index].isCompleted = response.data.isCompleted;
+    }
+  } catch (err) {
+    console.error("Error updating todo status:", err);
+    error.value = "Failed to update task status.";
+  }
+}
+
+async function deleteTodo(id) {
+  error.value = null;
+  try {
+    await axios.delete(`${backendUrl}/todos/${id}`);
+    todos.value = todos.value.filter((t) => t.id !== id);
+  } catch (err) {
+    console.error("Error deleting todo:", err);
+    error.value = "Failed to delete task.";
+  }
+}
+
 onMounted(fetchTodos);
 
 const filteredAndSortedTodos = computed(() => todos.value);
