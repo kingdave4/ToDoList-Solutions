@@ -1,0 +1,17 @@
+FROM node:20-alpine AS base
+
+# Set working directory
+WORKDIR /app
+
+RUN apk update && apk upgrade --no-cache
+
+COPY backend/package*.json ./
+
+RUN npm install --only=production
+
+COPY backend .
+
+EXPOSE 3000
+
+# Run server
+CMD ["node", "server.js"]
