@@ -3,13 +3,11 @@ FROM node:20-alpine AS base
 # Set working directory
 WORKDIR /app
 
-RUN apk update && apk upgrade --no-cache
+COPY package*.json ./
 
-COPY backend/package*.json ./
+RUN npm install
 
-RUN npm install --only=production
-
-COPY backend .
+COPY . .
 
 EXPOSE 3000
 

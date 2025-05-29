@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    # Optional: Add volumes for persistent data or development
+    # volumes:
+    #   - ./backend:/app
+    # Optional: Add environment variables
+    # environment:
+    #   - NODE_ENV=development
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+    # Optional: Add volumes for development
+    # volumes:
+    #   - ./frontend:/app
+    # Optional: Add dependency on backend service
+    # depends_on:
+    #   - backend
