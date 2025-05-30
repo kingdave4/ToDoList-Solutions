@@ -65,6 +65,53 @@ The backend uses a simple Express server and stores data in a `todos.json` file.
    ```
    This will execute the API endpoint tests located in the `tests` directory.
 
+## Running with Docker
+
+1.  Make sure you have Docker installed and running.
+2.  Navigate to the project root directory.
+3.  Run the following command to build and start the application:
+
+    ```bash
+    docker compose up --build
+    ```
+
+4.  The frontend will be accessible at `http://localhost`.
+
+## Running with Kubernetes
+
+1.  Make sure you have Minikube and kubectl installed and running.
+2.  Navigate to the project root directory.
+3.  Start Minikube:
+
+    ```bash
+    minikube start
+    ```
+
+4.  Build the Docker images:
+
+    ```bash
+    minikube docker-env
+    eval $(minikube docker-env)
+    docker build -t backend:latest ./backend
+    docker build -t frontend:latest ./frontend
+    ```
+
+5.  Apply the Kubernetes configurations:
+
+    ```bash
+    kubectl apply -f backend-deployment.yaml
+    kubectl apply -f backend-service.yaml
+    kubectl apply -f frontend-deployment.yaml
+    kubectl apply -f frontend-service.yaml
+    ```
+
+6.  Get the frontend service URL:
+
+    ```bash
+    minikube service frontend-service --url
+    ```
+
+7.  Open your browser and navigate to the URL provided by Minikube.
 ## Design Choices
 
 - **Backend:**
