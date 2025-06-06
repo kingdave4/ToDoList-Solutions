@@ -1,0 +1,66 @@
+# Azure Pipelines YAML for ToDoList-Solutions project
+
+trigger:
+- main
+
+variables:
+  dockerRegistryServiceConnection: '' # Replace with the name of your Azure Container Registry service connection
+  imageRepositoryBackend: 'todolist-backend'
+  imageRepositoryFrontend: 'todolist-frontend'
+  dockerfilePathBackend: '$(Build.SourcesDirectory)/backend/Dockerfile'
+  dockerfilePathFrontend: '$(Build.SourcesDirectory)/frontend/Dockerfile'
+  tag: '$(Build.BuildId)'
+  vmImageName: 'ubuntu-latest'
+
+stages:
+- stage: Build
+  displayName: Build and push Docker images
+  jobs:
+  - job: Build
+    displayName: Build
+    pool:
+      vmImage: $(vmImageName)
+    steps:
+    - task: Docker@2
+      displayName: Build and push backend image
+      inputs:
+        containerRegistry: $(dockerRegistryServiceConnection)
+        repository: $(imageRepositoryBackend)
+        command: 'buildAndPush'
+        Dockerfile: $(dockerfilePathBackend)
+        tags: |
+          $(tag)
+
+    - task: Docker@2
+      displayName: Build and push frontend image
+      inputs:
+        containerRegistry: $(dockerRegistryServiceConnection)
+        repository: $(imageRepositoryFrontend)
+        command: 'buildAndPush'
+        Dockerfile: $(dockerfilePathFrontend)
+        tags: |
+          $(tag)
+
+# Add more stages here for testing and deployment as needed.
+# Example deployment stage to Azure Kubernetes Service (AKS):
+# - stage: Deploy
+#   displayName: Deploy to AKS
+#   jobs:
+#   - job: Deploy
+#     displayName: Deploy
+#     pool:
+#       vmImage: $(vmImageName)
+#     steps:
+#     - task: KubernetesManifest@1
+#       displayName: Deploy to Kubernetes cluster
+#       inputs:
+#         kubernetesServiceConnection: '' # Replace with the name of your Kubernetes service connection
+#         namespace: 'default' # Replace with your namespace
+#         manifests: |
+#           $(Build.SourcesDirectory)/backend-deployment.yaml
+#           $(Build.SourcesDirectory)/backend-service.yaml
+#           $(Build.SourcesDirectory)/frontend-deployment.yaml
+#           $(Build.SourcesDirectory)/frontend-service.yaml
+#         containers: |
+#           $(dockerRegistryServiceConnection)/$(imageRepositoryBackend):$(tag)
+#           $(dockerRegistryServiceConnection)/$(imageRepositoryFrontend):$(tag)
