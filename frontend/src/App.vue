@@ -3,27 +3,56 @@ import { ref, onMounted, computed } from "vue";
 import axios from "axios";
 import TodoItem from "./components/TodoItem.vue";
 import AddTodoModal from "./components/AddTodoModal.vue";
+import LoginModal from "./components/LoginModal.vue";
 import TodoControls from "./components/TodoControls.vue";
 
 const todos = ref([]);
 const loading = ref(false);
 const error = ref(null);
 const backendUrl = "http://localhost:3000";
-const showAddModal = ref(false);
+const showModal = ref(false);
+const showLoginModal = ref(false);
+const currentTodo = ref(null);
+const loginModalRef = ref(null);
+
+// Auth state
+const user = ref(null);
+const isAuthenticated = computed(() => !!user.value);
 
 const currentFilter = ref("all");
 const sortBy = ref("createdAt");
 const sortDirection = ref("desc");
 
+// Helper function to handle authentication errors
+const handleAuthError = (error) => {
+  if (error.response?.status === 401) {
+    handleLogout();
+    showLoginModal.value = true;
+    return true;
+  }
+  return false; 
+};
+
 async function fetchTodos() {
+  if (!user.value) return;
+  
   loading.value = true;
   error.value = null;
   try {
-    const response = await axios.get(`${backendUrl}/todos`);
+    const token = localStorage.getItem('token');
+    const response = await axios.get(`${backendUrl}/todos`, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    });
     todos.value = response.data;
   } catch (err) {
     console.error("Error fetching todos:", err);
-    error.value = "Failed to load todos. Please ensure the backend is running.";
+    if (handleAuthError(err)) {
+      error.value = "Your session has expired. Please log in again.";
+    } else {
+      error.value = "Failed to load todos. Please ensure the backend is running.";
+    }
     todos.value = [];
   } finally {
     loading.value = false;
@@ -31,23 +60,44 @@ async function fetchTodos() {
 }
 
 async function addTodo(payload) {
+  if (!user.value) {
+    showLoginModal.value = true;
+    return;
+  }
+
   error.value = null;
   try {
-    const response = await axios.post(`${backendUrl}/todos`, payload);
+    const token = localStorage.getItem('token');
+    const response = await axios.post(`${backendUrl}/todos`, payload, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    });
     todos.value.unshift(response.data);
-    showAddModal.value = false;
+    showModal.value = false;
   } catch (err) {
     console.error("Error adding todo:", err);
-    error.value = err.response?.data?.message || "Failed to add todo. Please try again.";
+    if (handleAuthError(err)) {
+      error.value = "Your session has expired. Please log in again.";
+    } else {
+      error.value = err.response?.data?.message || "Failed to add todo. Please try again.";
+    }
   }
 }
 
 async function toggleComplete(todo) {
+  if (!user.value) return;
+  
   error.value = null;
   try {
+    const token = localStorage.getItem('token');
     const updatedStatus = !todo.isCompleted;
     const response = await axios.patch(`${backendUrl}/todos/${todo.id}`, {
       isCompleted: updatedStatus,
+    }, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
     });
     const index = todos.value.findIndex((t) => t.id === todo.id);
     if (index !== -1) {
@@ -55,22 +105,158 @@ async function toggleComplete(todo) {
     }
   } catch (err) {
     console.error("Error updating todo status:", err);
-    error.value = "Failed to update task status.";
+    if (handleAuthError(err)) {
+      error.value = "Your session has expired. Please log in again.";
+    } else {
+      error.value = "Failed to update task status.";
+    }
   }
 }
 
 async function deleteTodo(id) {
+  if (!user.value) return;
+  
   error.value = null;
   try {
-    await axios.delete(`${backendUrl}/todos/${id}`);
+    const token = localStorage.getItem('token');
+    await axios.delete(`${backendUrl}/todos/${id}`, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    });
     todos.value = todos.value.filter((t) => t.id !== id);
   } catch (err) {
     console.error("Error deleting todo:", err);
-    error.value = "Failed to delete task.";
+    if (handleAuthError(err)) {
+      error.value = "Your session has expired. Please log in again.";
+    } else {
+      error.value = "Failed to delete task.";
+    }
   }
 }
 
-onMounted(fetchTodos);
+async function editTodo(id) {
+  error.value = null;
+  try {
+    const todo = todos.value.find(t => t.id === id);
+    if (!todo) return;
+    
+    currentTodo.value = todo;
+    showModal.value = true;
+  } catch (err) {
+    console.error("Error preparing todo edit:", err);
+    error.value = "Failed to prepare task for editing.";
+  }
+}
+
+async function handleEditTodo(payload) {
+  if (!user.value) return;
+  
+  error.value = null;
+  try {
+    const token = localStorage.getItem('token');
+    const response = await axios.put(`${backendUrl}/todos/${currentTodo.value.id}`, payload, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    });
+    const index = todos.value.findIndex((t) => t.id === currentTodo.value.id);
+    if (index !== -1) {
+      todos.value[index] = response.data;
+    }
+    showModal.value = false;
+    currentTodo.value = null;
+  } catch (err) {
+    console.error("Error editing todo:", err);
+    if (handleAuthError(err)) {
+      error.value = "Your session has expired. Please log in again.";
+    } else {
+      error.value = "Failed to edit task.";
+    }
+  }
+}
+
+// Auth functions
+const handleLogin = async (userData) => {
+  try {
+    const response = await axios.post(`${backendUrl}/auth/login`, userData);
+    const { token, user: userdata } = response.data;
+    
+    // Set authentication state first
+    isAuthenticated.value = true;
+    user.value = userdata;
+    error.value = null;
+    
+    // Then store in localStorage
+    localStorage.setItem("token", token);
+    localStorage.setItem("user", JSON.stringify(userdata));
+    
+    // Close modal and fetch todos
+    showLoginModal.value = false;
+    
+    // Small delay to ensure state is updated
+    await new Promise(resolve => setTimeout(resolve, 0));
+    await fetchTodos();
+  } catch (error) {
+    // Call the modal's error handler
+    if (loginModalRef.value) {
+      const errorData = error.response?.data;
+      const errorMessage = errorData?.message || "Failed to login";
+      loginModalRef.value.handleError({ message: errorMessage });
+    }
+  }
+};
+
+async function handleSignup(userData) {
+  try {
+    const response = await axios.post(`${backendUrl}/auth/signup`, userData);
+    
+    isAuthenticated.value = true;
+    user.value = response.data.user;
+    error.value = null;
+    
+    localStorage.setItem('token', response.data.token);
+    localStorage.setItem('user', JSON.stringify(response.data.user));    
+
+    showLoginModal.value = false;
+    
+    await new Promise(resolve => setTimeout(resolve, 0));
+    await fetchTodos();
+  } catch (err) {
+    // Call the modal's error handler
+    if (loginModalRef.value) {
+      loginModalRef.value.handleError(err.response?.data || { message: "Failed to sign up" });
+    }
+  }
+}
+
+function handleLogout() {
+  user.value = null;
+  isAuthenticated.value = false;
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+  todos.value = [];
+}
+
+function handleAddTodoClick() {
+  if (!isAuthenticated.value) {
+    showLoginModal.value = true;
+    return;
+  }
+  currentTodo.value = null;
+  showModal.value = true;
+}
+
+// Initialize auth state from localStorage
+onMounted(() => {
+  const savedUser = localStorage.getItem('user');
+  const savedToken = localStorage.getItem('token');
+  if (savedUser && savedToken) {
+    user.value = JSON.parse(savedUser);
+    isAuthenticated.value = true;
+  }
+  fetchTodos();
+});
 
 const filteredAndSortedTodos = computed(() => {
   let result = [...todos.value];
@@ -116,13 +302,23 @@ const filteredAndSortedTodos = computed(() => {
 
 <template>
   <div id="app">
-    <h1>My To-Do List</h1>
+    <div class="app-header">
+      <h1>My To-Do List</h1>
+      <div class="auth-section">
+        <div v-if="isAuthenticated" class="user-info">
+          <span class="welcome-text">Welcome, {{ user.name }}!</span>
+          <button @click="handleLogout" class="logout-btn">Logout</button>
+        </div>
+        <button v-else @click="showLoginModal = true" class="login-btn">Login</button>
+      </div>
+    </div>
 
     <div class="header-controls">
-      <button @click="showAddModal = true" class="add-todo-btn">
+      <button @click="handleAddTodoClick" class="add-todo-btn">
         <span class="plus-icon">+</span> Add Todo
       </button>
       <TodoControls
+        v-if="isAuthenticated"
         v-model:currentFilter="currentFilter"
         v-model:sortBy="sortBy"
         v-model:sortDirection="sortDirection"
@@ -130,21 +326,36 @@ const filteredAndSortedTodos = computed(() => {
     </div>
 
     <AddTodoModal
-      :show-modal="showAddModal"
-      @close-modal="showAddModal = false"
+      :show-modal="showModal"
+      :todo="currentTodo"
+      @close-modal="() => { showModal = false; currentTodo = null; }"
       @add-todo="addTodo"
+      @edit-todo="handleEditTodo"
     />
+
+    <LoginModal
+      :show-modal="showLoginModal"
+      @close-modal="showLoginModal = false"
+      @login="handleLogin"
+      @signup="handleSignup"
+      ref="loginModalRef"
+    />
+
+    <div v-if="!isAuthenticated" class="auth-message">
+      <p>Please <a href="#" @click.prevent="showLoginModal = true">login</a> to manage your todos.</p>
+    </div>
 
     <div v-if="loading" class="loading-msg">Loading tasks...</div>
     <div v-if="error" class="error">{{ error }}</div>
 
-    <ul v-if="!loading && !error" class="todo-list">
+    <ul v-if="!loading && !error && isAuthenticated" class="todo-list">
       <TodoItem
         v-for="todo in filteredAndSortedTodos"
         :key="todo.id"
         :todo="todo"
         @toggle-complete="toggleComplete"
         @delete-todo="deleteTodo"
+        @edit-todo="editTodo"
       />
       <li v-if="filteredAndSortedTodos.length === 0 && !loading" class="no-tasks">
         {{
@@ -174,12 +385,71 @@ body {
   padding: 20px;
 }
 
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+}
+
+.app-header h1 {
+  margin: 0;
+}
+
 h1 {
   text-align: center;
   color: #e0e0e0;
   margin-bottom: 30px;
   font-weight: 300;
   font-size: 2.5em;
+}
+
+.auth-section {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.welcome-text {
+  color: #ccc;
+  font-size: 0.9em;
+}
+
+.login-btn, .logout-btn {
+  padding: 8px 16px;
+  border: 1px solid #42b983;
+  background-color: transparent;
+  color: #42b983;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9em;
+  transition: all 0.3s ease;
+}
+
+.login-btn:hover, .logout-btn:hover {
+  background-color: #42b983;
+  color: white;
+}
+
+.auth-message {
+  text-align: center;
+  padding: 40px;
+  color: #ccc;
+}
+
+.auth-message a {
+  color: #42b983;
+  text-decoration: none;
+}
+
+.auth-message a:hover {
+  text-decoration: underline;
 }
 
 .header-controls {

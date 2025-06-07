@@ -6,7 +6,7 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(["toggle-complete", "delete-todo"]);
+const emit = defineEmits(["toggle-complete", "delete-todo", "edit-todo"]);
 
 function formatDate(dateString) {
   if (!dateString) return "";
@@ -29,6 +29,10 @@ const handleToggleComplete = () => {
 const handleDelete = () => {
   emit("delete-todo", props.todo.id);
 };
+
+const handleEdit = () => {
+  emit("edit-todo", props.todo.id);
+};
 </script>
 
 <template>
@@ -46,6 +50,7 @@ const handleDelete = () => {
         {{ todo.isCompleted ? "Mark Incomplete" : "Mark Complete" }}
       </button>
       <button @click="handleDelete" class="delete-btn">Delete</button>
+      <button @click="handleEdit" class="edit-btn" :disabled="todo.isCompleted">Edit</button>
     </div>
   </li>
 </template>
@@ -125,7 +130,19 @@ const handleDelete = () => {
   background-color: #c9302c;
   border-color: #ac2925;
 }
-
+.edit-btn {
+  background-color: #28a745;
+  color: white;
+  border: 1px solid #218838;
+}
+.edit-btn:hover {
+  background-color: #218838;
+  border-color: #1e7e34;
+}
+.edit-btn:disabled {
+  opacity: 0.1;
+  cursor: not-allowed;
+}
 .todo-card.completed {
   background-color: #222;
   border-left: 5px solid #42b983;

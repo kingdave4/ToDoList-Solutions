@@ -6,9 +6,13 @@ const props = defineProps({
     type: Boolean,
     required: true,
   },
+  todo: {
+    type: Object,
+    default: null,
+  },
 });
 
-const emit = defineEmits(["close-modal", "add-todo"]);
+const emit = defineEmits(["close-modal", "add-todo", "edit-todo"]);
 
 const newTodoTitle = ref("");
 const newTodoDescription = ref("");
@@ -19,9 +23,17 @@ watch(
   () => props.showModal,
   (newValue) => {
     if (newValue) {
-      newTodoTitle.value = "";
-      newTodoDescription.value = "";
-      newTodoDueDate.value = "";
+      if (props.todo) {
+        // Edit mode
+        newTodoTitle.value = props.todo.title;
+        newTodoDescription.value = props.todo.description || "";
+        newTodoDueDate.value = props.todo.dueDate || "";
+      } else {
+        // Add mode
+        newTodoTitle.value = "";
+        newTodoDescription.value = "";
+        newTodoDueDate.value = "";
+      }
       titleError.value = "";
     }
   }
@@ -39,7 +51,12 @@ const handleSubmit = () => {
     description: newTodoDescription.value.trim() || null,
     dueDate: newTodoDueDate.value || null,
   };
-  emit("add-todo", payload);
+
+  if (props.todo) {
+    emit("edit-todo", { ...payload, isCompleted: props.todo.isCompleted });
+  } else {
+    emit("add-todo", payload);
+  }
 };
 
 const closeModal = () => {
@@ -50,7 +67,7 @@ const closeModal = () => {
 <template>
   <div v-if="showModal" class="modal-overlay" @click.self="closeModal">
     <div class="modal-content">
-      <h2>Add New Task</h2>
+      <h2>{{ todo ? 'Edit Task' : 'Add New Task' }}</h2>
       <form @submit.prevent="handleSubmit" class="add-form modal-form">
         <div class="form-group">
           <label for="modal-todo-title">Task Title*</label>
@@ -87,7 +104,9 @@ const closeModal = () => {
         </div>
 
         <div class="modal-actions">
-          <button type="submit" class="form-button create-button">Create</button>
+          <button type="submit" class="form-button create-button">
+            {{ todo ? 'Save Changes' : 'Create' }}
+          </button>
           <button type="button" @click="closeModal" class="form-button cancel-button">
             Cancel
           </button>
