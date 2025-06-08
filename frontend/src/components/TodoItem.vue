@@ -1,3 +1,23 @@
+<template>
+  <li class="todo-card" :class="{ completed: todo.isCompleted }">
+    <div class="todo-details">
+      <span class="todo-title">{{ todo.title }}</span>
+      <p v-if="todo.description" class="todo-description">{{ todo.description }}</p>
+      <div class="todo-meta-info">
+        <span v-if="todo.dueDate">Due: {{ formatDate(todo.dueDate) }}</span>
+        <span>Added: {{ formatDate(todo.createdAt) }}, {{ formatTime(todo.createdAt) }}</span>
+      </div>
+    </div>
+    <div class="todo-actions">
+      <button @click="handleToggleComplete" class="complete-btn">
+        {{ todo.isCompleted ? "Mark Incomplete" : "Mark Complete" }}
+      </button>
+      <button @click="handleDelete" class="delete-btn">Delete</button>
+      <button @click="handleEdit" class="edit-btn" :disabled="todo.isCompleted">Edit</button>
+    </div>
+  </li>
+</template>
+
 <script setup>
 const props = defineProps({
   todo: {
@@ -35,25 +55,6 @@ const handleEdit = () => {
 };
 </script>
 
-<template>
-  <li class="todo-card" :class="{ completed: todo.isCompleted }">
-    <div class="todo-details">
-      <span class="todo-title">{{ todo.title }}</span>
-      <p v-if="todo.description" class="todo-description">{{ todo.description }}</p>
-      <div class="todo-meta-info">
-        <span v-if="todo.dueDate">Due: {{ formatDate(todo.dueDate) }}</span>
-        <span>Added: {{ formatDate(todo.createdAt) }}, {{ formatTime(todo.createdAt) }}</span>
-      </div>
-    </div>
-    <div class="todo-actions">
-      <button @click="handleToggleComplete" class="complete-btn">
-        {{ todo.isCompleted ? "Mark Incomplete" : "Mark Complete" }}
-      </button>
-      <button @click="handleDelete" class="delete-btn">Delete</button>
-      <button @click="handleEdit" class="edit-btn" :disabled="todo.isCompleted">Edit</button>
-    </div>
-  </li>
-</template>
 
 <style scoped>
 .todo-card {

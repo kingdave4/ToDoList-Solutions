@@ -1,3 +1,55 @@
+<template>
+  <div v-if="showModal" class="modal-overlay" @click.self="closeModal">
+    <div class="modal-content">
+      <h2>{{ todo ? 'Edit Task' : 'Add New Task' }}</h2>
+      <form @submit.prevent="handleSubmit" class="add-form modal-form">
+        <div class="form-group">
+          <label for="modal-todo-title">Task Title*</label>
+          <input
+            type="text"
+            id="modal-todo-title"
+            v-model="newTodoTitle"
+            placeholder="e.g., Read chapter 5..."
+            class="form-input"
+            aria-describedby="modal-title-error"
+            required
+          />
+          <p v-if="titleError" id="modal-title-error" class="input-error">{{ titleError }}</p>
+        </div>
+
+        <div class="form-group">
+          <label for="modal-todo-description">Description</label>
+          <textarea
+            id="modal-todo-description"
+            v-model="newTodoDescription"
+            placeholder="More details..."
+            class="form-input description-input"
+          ></textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="modal-todo-due-date">Due Date</label>
+          <input
+            type="date"
+            id="modal-todo-due-date"
+            v-model="newTodoDueDate"
+            class="form-input date-input"
+          />
+        </div>
+
+        <div class="modal-actions">
+          <button type="submit" class="form-button create-button">
+            {{ todo ? 'Save Changes' : 'Create' }}
+          </button>
+          <button type="button" @click="closeModal" class="form-button cancel-button">
+            Cancel
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</template>
+
 <script setup>
 import { ref, watch } from "vue";
 
@@ -63,58 +115,6 @@ const closeModal = () => {
   emit("close-modal");
 };
 </script>
-
-<template>
-  <div v-if="showModal" class="modal-overlay" @click.self="closeModal">
-    <div class="modal-content">
-      <h2>{{ todo ? 'Edit Task' : 'Add New Task' }}</h2>
-      <form @submit.prevent="handleSubmit" class="add-form modal-form">
-        <div class="form-group">
-          <label for="modal-todo-title">Task Title*</label>
-          <input
-            type="text"
-            id="modal-todo-title"
-            v-model="newTodoTitle"
-            placeholder="e.g., Read chapter 5..."
-            class="form-input"
-            aria-describedby="modal-title-error"
-            required
-          />
-          <p v-if="titleError" id="modal-title-error" class="input-error">{{ titleError }}</p>
-        </div>
-
-        <div class="form-group">
-          <label for="modal-todo-description">Description</label>
-          <textarea
-            id="modal-todo-description"
-            v-model="newTodoDescription"
-            placeholder="More details..."
-            class="form-input description-input"
-          ></textarea>
-        </div>
-
-        <div class="form-group">
-          <label for="modal-todo-due-date">Due Date</label>
-          <input
-            type="date"
-            id="modal-todo-due-date"
-            v-model="newTodoDueDate"
-            class="form-input date-input"
-          />
-        </div>
-
-        <div class="modal-actions">
-          <button type="submit" class="form-button create-button">
-            {{ todo ? 'Save Changes' : 'Create' }}
-          </button>
-          <button type="button" @click="closeModal" class="form-button cancel-button">
-            Cancel
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
-</template>
 
 <style scoped>
 .modal-overlay {

@@ -1,3 +1,69 @@
+<template>
+  <div id="app">
+    <div class="app-header">
+      <h1>My To-Do List</h1>
+      <div class="auth-section">
+        <div v-if="isAuthenticated" class="user-info">
+          <span class="welcome-text">Welcome, {{ user.name }}!</span>
+          <button @click="handleLogout" class="logout-btn">Logout</button>
+        </div>
+        <button v-else @click="showLoginModal = true" class="login-btn">Login</button>
+      </div>
+    </div>
+
+    <div class="header-controls">
+      <button @click="handleAddTodoClick" class="add-todo-btn">
+        <span class="plus-icon">+</span> Add Todo
+      </button>
+      <TodoControls
+        v-if="isAuthenticated"
+        v-model:currentFilter="currentFilter"
+        v-model:sortBy="sortBy"
+        v-model:sortDirection="sortDirection"
+      />
+    </div>
+
+    <AddTodoModal
+      :show-modal="showModal"
+      :todo="currentTodo"
+      @close-modal="() => { showModal = false; currentTodo = null; }"
+      @add-todo="addTodo"
+      @edit-todo="handleEditTodo"
+    />
+
+    <LoginModal
+      :show-modal="showLoginModal"
+      @close-modal="showLoginModal = false"
+      @login="handleLogin"
+      @signup="handleSignup"
+      ref="loginModalRef"
+    />
+
+    <div v-if="!isAuthenticated" class="auth-message">
+      <p>Please <a href="#" @click.prevent="showLoginModal = true">login</a> to manage your todos.</p>
+    </div>
+
+    <div v-if="loading" class="loading-msg">Loading tasks...</div>
+    <div v-if="error" class="error">{{ error }}</div>
+
+    <ul v-if="!loading && !error && isAuthenticated" class="todo-list">
+      <TodoItem
+        v-for="todo in filteredAndSortedTodos"
+        :key="todo.id"
+        :todo="todo"
+        @toggle-complete="toggleComplete"
+        @delete-todo="deleteTodo"
+        @edit-todo="editTodo"
+      />
+      <li v-if="filteredAndSortedTodos.length === 0 && !loading" class="no-tasks">
+        {{
+          todos.length > 0 ? "No tasks match the current filter." : "No tasks yet! Add one above."
+        }}
+      </li>
+    </ul>
+  </div>
+</template>
+
 <script setup>
 import { ref, onMounted, computed } from "vue";
 import axios from "axios";
@@ -173,7 +239,7 @@ async function handleEditTodo(payload) {
     } else {
       error.value = "Failed to edit task.";
     }
-  }
+  }  
 }
 
 // Auth functions
@@ -299,72 +365,6 @@ const filteredAndSortedTodos = computed(() => {
   return result;
 });
 </script>
-
-<template>
-  <div id="app">
-    <div class="app-header">
-      <h1>My To-Do List</h1>
-      <div class="auth-section">
-        <div v-if="isAuthenticated" class="user-info">
-          <span class="welcome-text">Welcome, {{ user.name }}!</span>
-          <button @click="handleLogout" class="logout-btn">Logout</button>
-        </div>
-        <button v-else @click="showLoginModal = true" class="login-btn">Login</button>
-      </div>
-    </div>
-
-    <div class="header-controls">
-      <button @click="handleAddTodoClick" class="add-todo-btn">
-        <span class="plus-icon">+</span> Add Todo
-      </button>
-      <TodoControls
-        v-if="isAuthenticated"
-        v-model:currentFilter="currentFilter"
-        v-model:sortBy="sortBy"
-        v-model:sortDirection="sortDirection"
-      />
-    </div>
-
-    <AddTodoModal
-      :show-modal="showModal"
-      :todo="currentTodo"
-      @close-modal="() => { showModal = false; currentTodo = null; }"
-      @add-todo="addTodo"
-      @edit-todo="handleEditTodo"
-    />
-
-    <LoginModal
-      :show-modal="showLoginModal"
-      @close-modal="showLoginModal = false"
-      @login="handleLogin"
-      @signup="handleSignup"
-      ref="loginModalRef"
-    />
-
-    <div v-if="!isAuthenticated" class="auth-message">
-      <p>Please <a href="#" @click.prevent="showLoginModal = true">login</a> to manage your todos.</p>
-    </div>
-
-    <div v-if="loading" class="loading-msg">Loading tasks...</div>
-    <div v-if="error" class="error">{{ error }}</div>
-
-    <ul v-if="!loading && !error && isAuthenticated" class="todo-list">
-      <TodoItem
-        v-for="todo in filteredAndSortedTodos"
-        :key="todo.id"
-        :todo="todo"
-        @toggle-complete="toggleComplete"
-        @delete-todo="deleteTodo"
-        @edit-todo="editTodo"
-      />
-      <li v-if="filteredAndSortedTodos.length === 0 && !loading" class="no-tasks">
-        {{
-          todos.length > 0 ? "No tasks match the current filter." : "No tasks yet! Add one above."
-        }}
-      </li>
-    </ul>
-  </div>
-</template>
 
 <style>
 body {

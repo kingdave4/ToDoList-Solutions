@@ -1,3 +1,29 @@
+<template>
+  <div class="controls-container">
+    <div class="filter-controls">
+      <span>Filter:</span>
+      <button @click="filterModel = 'all'" :class="{ active: filterModel === 'all' }">All</button>
+      <button @click="filterModel = 'incomplete'" :class="{ active: filterModel === 'incomplete' }">
+        Incomplete
+      </button>
+      <button @click="filterModel = 'completed'" :class="{ active: filterModel === 'completed' }">
+        Completed
+      </button>
+    </div>
+    <div class="sort-controls">
+      <span>Sort by:</span>
+      <select v-model="sortByModel" class="sort-select">
+        <option value="createdAt">Added Date</option>
+        <option value="dueDate">Due Date</option>
+      </select>
+      <select v-model="sortDirectionModel" class="sort-select">
+        <option value="desc">Newest</option>
+        <option value="asc">Oldest</option>
+      </select>
+    </div>
+  </div>
+</template>
+
 <script setup>
 import { computed } from "vue";
 
@@ -33,32 +59,6 @@ const sortDirectionModel = computed({
   set: (value) => emit("update:sortDirection", value),
 });
 </script>
-
-<template>
-  <div class="controls-container">
-    <div class="filter-controls">
-      <span>Filter:</span>
-      <button @click="filterModel = 'all'" :class="{ active: filterModel === 'all' }">All</button>
-      <button @click="filterModel = 'incomplete'" :class="{ active: filterModel === 'incomplete' }">
-        Incomplete
-      </button>
-      <button @click="filterModel = 'completed'" :class="{ active: filterModel === 'completed' }">
-        Completed
-      </button>
-    </div>
-    <div class="sort-controls">
-      <span>Sort by:</span>
-      <select v-model="sortByModel" class="sort-select">
-        <option value="createdAt">Added Date</option>
-        <option value="dueDate">Due Date</option>
-      </select>
-      <select v-model="sortDirectionModel" class="sort-select">
-        <option value="desc">Newest</option>
-        <option value="asc">Oldest</option>
-      </select>
-    </div>
-  </div>
-</template>
 
 <style scoped>
 .controls-container {

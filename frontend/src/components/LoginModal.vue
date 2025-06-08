@@ -1,3 +1,89 @@
+<template>
+  <div v-if="showModal" class="modal-overlay" @click.self="closeModal">
+    <div class="modal-content">
+      <h2>{{ isSignUp ? 'Sign Up' : 'Sign In' }}</h2>
+      
+      <div v-if="authError" class="auth-error">
+        {{ authError }}
+      </div>
+
+      <form @submit.prevent="handleSubmit" class="auth-form">
+        <div v-if="isSignUp" class="form-group">
+          <label for="name">Full Name*</label>
+          <input
+            type="text"
+            id="name"
+            v-model="name"
+            placeholder="Enter your full name"
+            class="form-input"
+            :class="{ error: nameError }"
+          />
+          <p v-if="nameError" class="input-error">{{ nameError }}</p>
+        </div>
+
+        <div class="form-group">
+          <label for="email">Email*</label>
+          <input
+            type="email"
+            id="email"
+            v-model="email"
+            placeholder="Enter your email"
+            class="form-input"
+            :class="{ error: emailError }"
+          />
+          <p v-if="emailError" class="input-error">{{ emailError }}</p>
+        </div>
+
+        <div class="form-group">
+          <label for="password">Password*</label>
+          <input
+            type="password"
+            id="password"
+            v-model="password"
+            placeholder="Enter your password"
+            class="form-input"
+            :class="{ error: passwordError }"
+          />
+          <p v-if="passwordError" class="input-error">{{ passwordError }}</p>
+        </div>
+
+        <div v-if="isSignUp" class="form-group">
+          <label for="confirmPassword">Confirm Password*</label>
+          <input
+            type="password"
+            id="confirmPassword"
+            v-model="confirmPassword"
+            placeholder="Confirm your password"
+            class="form-input"
+            :class="{ error: confirmPasswordError }"
+          />
+          <p v-if="confirmPasswordError" class="input-error">{{ confirmPasswordError }}</p>
+        </div>
+
+        <div class="modal-actions">
+          <button type="submit" class="form-button primary-button">
+            {{ isSignUp ? 'Sign Up' : 'Sign In' }}
+          </button>
+          <button type="button" @click="closeModal" class="form-button cancel-button">
+            Cancel
+          </button>
+        </div>
+      </form>
+
+      <div class="auth-toggle">
+        <p v-if="!isSignUp">
+          Don't have an account?
+          <a href="#" @click.prevent="toggleMode" class="toggle-link">Sign up here</a>
+        </p>
+        <p v-else>
+          Already have an account?
+          <a href="#" @click.prevent="toggleMode" class="toggle-link">Sign in here</a>
+        </p>
+      </div>
+    </div>
+  </div>
+</template>
+
 <script setup>
 import { ref, watch } from "vue";
 
@@ -136,92 +222,6 @@ const closeModal = () => {
   emit("close-modal");
 };
 </script>
-
-<template>
-  <div v-if="showModal" class="modal-overlay" @click.self="closeModal">
-    <div class="modal-content">
-      <h2>{{ isSignUp ? 'Sign Up' : 'Sign In' }}</h2>
-      
-      <div v-if="authError" class="auth-error">
-        {{ authError }}
-      </div>
-
-      <form @submit.prevent="handleSubmit" class="auth-form">
-        <div v-if="isSignUp" class="form-group">
-          <label for="name">Full Name*</label>
-          <input
-            type="text"
-            id="name"
-            v-model="name"
-            placeholder="Enter your full name"
-            class="form-input"
-            :class="{ error: nameError }"
-          />
-          <p v-if="nameError" class="input-error">{{ nameError }}</p>
-        </div>
-
-        <div class="form-group">
-          <label for="email">Email*</label>
-          <input
-            type="email"
-            id="email"
-            v-model="email"
-            placeholder="Enter your email"
-            class="form-input"
-            :class="{ error: emailError }"
-          />
-          <p v-if="emailError" class="input-error">{{ emailError }}</p>
-        </div>
-
-        <div class="form-group">
-          <label for="password">Password*</label>
-          <input
-            type="password"
-            id="password"
-            v-model="password"
-            placeholder="Enter your password"
-            class="form-input"
-            :class="{ error: passwordError }"
-          />
-          <p v-if="passwordError" class="input-error">{{ passwordError }}</p>
-        </div>
-
-        <div v-if="isSignUp" class="form-group">
-          <label for="confirmPassword">Confirm Password*</label>
-          <input
-            type="password"
-            id="confirmPassword"
-            v-model="confirmPassword"
-            placeholder="Confirm your password"
-            class="form-input"
-            :class="{ error: confirmPasswordError }"
-          />
-          <p v-if="confirmPasswordError" class="input-error">{{ confirmPasswordError }}</p>
-        </div>
-
-        <div class="modal-actions">
-          <button type="submit" class="form-button primary-button">
-            {{ isSignUp ? 'Sign Up' : 'Sign In' }}
-          </button>
-          <button type="button" @click="closeModal" class="form-button cancel-button">
-            Cancel
-          </button>
-        </div>
-      </form>
-
-      <div class="auth-toggle">
-        <p v-if="!isSignUp">
-          Don't have an account?
-          <a href="#" @click.prevent="toggleMode" class="toggle-link">Sign up here</a>
-        </p>
-        <p v-else>
-          Already have an account?
-          <a href="#" @click.prevent="toggleMode" class="toggle-link">Sign in here</a>
-        </p>
-      </div>
-    </div>
-  </div>
-</template>
 
 <style scoped>
 .modal-overlay {
