@@ -6,7 +6,8 @@ const router = express.Router();
 router.get("/", async (req, res) => {
   try {
     const todos = await readTodos();
-    res.json(todos);
+    const userTodos = todos.filter((todo) => todo.userId === req.userId);
+    res.json(userTodos);
   } catch (error) {
     res.status(500).json({ message: "Failed to retrieve todos" });
   }
@@ -17,11 +18,14 @@ router.post("/", async (req, res) => {
     const { title, description, dueDate } = req.body;
 
     if (!title || typeof title !== "string" || title.trim() === "") {
-      return res.status(400).json({ message: "Title is required and must be a non-empty string" });
+      return res
+        .status(400)
+        .json({ message: "Title is required and must be a non-empty string" });
     }
 
     const newTodo = {
       id: uuidv4(),
+      userId: req.userId, // Add userId from auth middleware
       title: title.trim(),
       description: description || "",
       dueDate: dueDate || null,
@@ -42,7 +46,9 @@ router.post("/", async (req, res) => {
 router.get("/:id", async (req, res) => {
   try {
     const todos = await readTodos();
-    const todo = todos.find((t) => t.id === req.params.id);
+    const todo = todos.find(
+      (t) => t.id === req.params.id && t.userId === req.userId
+    );
 
     if (!todo) {
       return res.status(404).json({ message: "Todo not found" });
@@ -59,12 +65,19 @@ router.put("/:id", async (req, res) => {
     const { id } = req.params;
     const { title, description, dueDate } = req.body;
 
-    if (title !== undefined && (typeof title !== "string" || title.trim() === "")) {
-      return res.status(400).json({ message: "Title must be a non-empty string" });
+    if (
+      title !== undefined &&
+      (typeof title !== "string" || title.trim() === "")
+    ) {
+      return res
+        .status(400)
+        .json({ message: "Title must be a non-empty string" });
     }
 
     const todos = await readTodos();
-    const todoIndex = todos.findIndex((t) => t.id === id);
+    const todoIndex = todos.findIndex(
+      (t) => t.id === id && t.userId === req.userId
+    );
 
     if (todoIndex === -1) {
       return res.status(404).json({ message: "Todo not found" });
@@ -90,11 +103,15 @@ router.patch("/:id", async (req, res) => {
     const { isCompleted } = req.body;
 
     if (typeof isCompleted !== "boolean") {
-      return res.status(400).json({ message: "isCompleted must be a boolean value" });
+      return res
+        .status(400)
+        .json({ message: "isCompleted must be a boolean value" });
     }
 
     const todos = await readTodos();
-    const todoIndex = todos.findIndex((t) => t.id === id);
+    const todoIndex = todos.findIndex(
+      (t) => t.id === id && t.userId === req.userId
+    );
 
     if (todoIndex === -1) {
       return res.status(404).json({ message: "Todo not found" });
@@ -107,7 +124,9 @@ router.patch("/:id", async (req, res) => {
 
     res.json(updatedTodo);
   } catch (error) {
-    res.status(500).json({ message: "Failed to update todo completion status" });
+    res
+      .status(500)
+      .json({ message: "Failed to update todo completion status" });
   }
 });
 
@@ -117,11 +136,15 @@ router.delete("/:id", async (req, res) => {
     const todos = await readTodos();
     const initialLength = todos.length;
 
-    const filteredTodos = todos.filter((t) => t.id !== id);
+    const userTodoExists = todos.some(
+      (t) => t.id === id && t.userId === req.userId
+    );
 
-    if (filteredTodos.length === initialLength) {
+    if (!userTodoExists) {
       return res.status(404).json({ message: "Todo not found" });
     }
+
+    const filteredTodos = todos.filter((t) => t.id !== id);
 
     await writeTodos(filteredTodos);
 
