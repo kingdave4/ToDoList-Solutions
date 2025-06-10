@@ -1,7 +1,7 @@
 <template>
   <div id="app">
     <div class="app-header">
-      <h1>My To-Do List</h1>
+      <h1>BetaTask</h1>
       <div class="auth-section">
         <div v-if="isAuthenticated" class="user-info">
           <span class="welcome-text">Welcome, {{ user.name }}!</span>

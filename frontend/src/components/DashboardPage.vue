@@ -25,42 +25,76 @@
 
     <!-- Task Summary Cards -->
     <div class="dashboard-summary">
-      <div class="summary-item overdue" :class="{ highlight: overdueCount > 0 }">
+      <div class="summary-item overdue" 
+           :class="{ highlight: overdueCount > 0, 'drag-over': dragOverZone === 'overdue' }"
+           @drop="handleDrop($event, 'overdue')"
+           @dragover="handleDragOver($event, 'overdue')"
+           @dragleave="handleDragLeave">
         <div class="summary-icon">⚠️</div>
         <div class="summary-content">
           <h3>Overdue Tasks</h3>
           <p>{{ overdueCount }}</p>
         </div>
+        <div class="drop-indicator" v-if="dragOverZone === 'overdue'">
+          Drop to mark as overdue
+        </div>
       </div>
-      <div class="summary-item today" :class="{ highlight: dueTodayCount > 0 }">
+      <div class="summary-item today" 
+           :class="{ highlight: dueTodayCount > 0, 'drag-over': dragOverZone === 'today' }"
+           @drop="handleDrop($event, 'today')"
+           @dragover="handleDragOver($event, 'today')"
+           @dragleave="handleDragLeave">
         <div class="summary-icon">📅</div>
         <div class="summary-content">
           <h3>Due Today</h3>
           <p>{{ dueTodayCount }}</p>
         </div>
+        <div class="drop-indicator" v-if="dragOverZone === 'today'">
+          Drop to set due today
+        </div>
       </div>
-      <div class="summary-item upcoming">
+      <div class="summary-item upcoming" 
+           :class="{ 'drag-over': dragOverZone === 'upcoming' }"
+           @drop="handleDrop($event, 'upcoming')"
+           @dragover="handleDragOver($event, 'upcoming')"
+           @dragleave="handleDragLeave">
         <div class="summary-icon">🚀</div>
         <div class="summary-content">
           <h3>Upcoming</h3>
           <p>{{ upcomingCount }}</p>
         </div>
+        <div class="drop-indicator" v-if="dragOverZone === 'upcoming'">
+          Drop to set due later
+        </div>
       </div>
-      <div class="summary-item completed">
+      <div class="summary-item completed" 
+           :class="{ 'drag-over': dragOverZone === 'completed' }"
+           @drop="handleDrop($event, 'completed')"
+           @dragover="handleDragOver($event, 'completed')"
+           @dragleave="handleDragLeave">
         <div class="summary-icon">✅</div>
         <div class="summary-content">
           <h3>Completed</h3>
           <p>{{ completedCount }}</p>
         </div>
+        <div class="drop-indicator" v-if="dragOverZone === 'completed'">
+          Drop to mark complete
+        </div>
       </div>
     </div>
 
     <div class="dashboard-content">
-      <!-- Upcoming Deadlines -->
+      <!-- All Tasks (Draggable) -->
       <div class="upcoming-tasks">
-        <h3>🎯 Upcoming Deadlines</h3>
-        <div v-if="upcomingTasks.length > 0" class="tasks-list">
-          <div v-for="task in upcomingTasks" :key="task.id" class="task-item">
+        <h3>🎯 Your Tasks (Drag to Change Status)</h3>
+        <div v-if="incompleteTodos.length > 0" class="tasks-list">
+          <div v-for="task in incompleteTodos" 
+               :key="task.id" 
+               class="task-item"
+               :class="{ 'being-dragged': draggedTodo && draggedTodo.id === task.id }"
+               draggable="true"
+               @dragstart="handleDragStart($event, task)"
+               @dragend="handleDragEnd">
             <div class="task-info">
               <span class="task-title">{{ task.title }}</span>
               <span class="task-due">Due: {{ formatDate(task.dueDate) }}</span>
@@ -68,10 +102,31 @@
             <div class="task-priority" :class="getPriorityClass(task.dueDate)">
               {{ getPriorityText(task.dueDate) }}
             </div>
+            <div class="drag-handle">⋮⋮</div>
           </div>
         </div>
         <div v-else class="no-tasks">
-          <p>🎉 No upcoming deadlines! You're all caught up.</p>
+          <p>🎉 No pending tasks! Add some above or you're all caught up.</p>
+        </div>
+        
+        <!-- Completed Tasks Section (Optional) -->
+        <div v-if="completedTodos.length > 0" class="completed-tasks-section">
+          <h4>✅ Recently Completed</h4>
+          <div class="tasks-list">
+            <div v-for="task in completedTodos.slice(0, 3)" 
+                 :key="task.id" 
+                 class="task-item completed-task"
+                 draggable="true"
+                 @dragstart="handleDragStart($event, task)"
+                 @dragend="handleDragEnd">
+              <div class="task-info">
+                <span class="task-title">{{ task.title }}</span>
+                <span class="task-due">Completed</span>
+              </div>
+              <div class="task-status">✓</div>
+              <div class="drag-handle">⋮⋮</div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -102,6 +157,10 @@ const backendUrl = "http://localhost:3000";
 
 const quickTaskTitle = ref('');
 const isAdding = ref(false);
+
+// Drag and drop state
+const draggedTodo = ref(null);
+const dragOverZone = ref(null);
 
 // Daily quotes and tips
 const quotes = [
@@ -162,33 +221,63 @@ async function fetchTodos() {
 
 // Computed properties for task summaries
 const overdueCount = computed(() => {
-  const now = new Date();
-  return todos.value.filter(todo => !todo.isCompleted && todo.dueDate && new Date(todo.dueDate) < now).length;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0); // Start of today
+  const todayString = today.toISOString().split('T')[0]; // YYYY-MM-DD format
+  
+  return todos.value.filter(todo => 
+    !todo.isCompleted && 
+    todo.dueDate && 
+    todo.dueDate < todayString
+  ).length;
 });
 
 const dueTodayCount = computed(() => {
   const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1);
+  const todayString = today.toISOString().split('T')[0]; // YYYY-MM-DD format
 
-  return todos.value.filter(todo => !todo.isCompleted && todo.dueDate && new Date(todo.dueDate) >= today && new Date(todo.dueDate) < tomorrow).length;
+  return todos.value.filter(todo => 
+    !todo.isCompleted && 
+    todo.dueDate && 
+    todo.dueDate === todayString
+  ).length;
 });
 
 const upcomingCount = computed(() => {
   const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1);
+  const todayString = today.toISOString().split('T')[0]; // YYYY-MM-DD format
 
-  return todos.value.filter(todo => !todo.isCompleted && todo.dueDate && new Date(todo.dueDate) >= tomorrow).length;
+  return todos.value.filter(todo => 
+    !todo.isCompleted && 
+    todo.dueDate && 
+    todo.dueDate > todayString
+  ).length;
 });
 
 const completedCount = computed(() => {
   return todos.value.filter(todo => todo.isCompleted).length;
 });
 
-// Computed property for upcoming tasks (e.g., next 5)
+// Computed property for incomplete todos (for dragging)
+const incompleteTodos = computed(() => {
+  return todos.value
+    .filter(todo => !todo.isCompleted)
+    .sort((a, b) => {
+      // Sort by due date, with no due date at the end
+      if (!a.dueDate && !b.dueDate) return 0;
+      if (!a.dueDate) return 1;
+      if (!b.dueDate) return -1;
+      return new Date(a.dueDate) - new Date(b.dueDate);
+    });
+});
+
+// Computed property for completed todos
+const completedTodos = computed(() => {
+  return todos.value
+    .filter(todo => todo.isCompleted)
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)); // Most recent first
+});
+
 const upcomingTasks = computed(() => {
   const now = new Date();
   return todos.value
@@ -207,25 +296,48 @@ const formatDate = (dateString) => {
 // Helper to get priority class based on due date
 const getPriorityClass = (dueDate) => {
   if (!dueDate) return 'no-priority';
-  const today = new Date();
-  const due = new Date(dueDate);
-  const diffDays = Math.ceil((due - today) / (1000 * 60 * 60 * 24));
   
-  if (diffDays <= 1) return 'high-priority';
-  if (diffDays <= 3) return 'medium-priority';
-  return 'low-priority';
+  const today = new Date();
+  const todayString = today.toISOString().split('T')[0];
+  
+  if (dueDate < todayString) return 'high-priority'; // Overdue - RED
+  if (dueDate === todayString) return 'due-today-priority'; // Due today - ORANGE
+  
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowString = tomorrow.toISOString().split('T')[0];
+  
+  if (dueDate === tomorrowString) return 'medium-priority'; // Tomorrow - YELLOW
+  
+  const threeDaysFromNow = new Date(today);
+  threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3);
+  const threeDaysString = threeDaysFromNow.toISOString().split('T')[0];
+  
+  if (dueDate <= threeDaysString) return 'medium-priority'; // Within 3 days - YELLOW
+  return 'low-priority'; // Later - BLUE
 };
 
 // Helper to get priority text
 const getPriorityText = (dueDate) => {
   if (!dueDate) return 'No Priority';
-  const today = new Date();
-  const due = new Date(dueDate);
-  const diffDays = Math.ceil((due - today) / (1000 * 60 * 60 * 24));
   
-  if (diffDays <= 0) return 'Overdue';
-  if (diffDays === 1) return 'Tomorrow';
-  if (diffDays <= 3) return 'Soon';
+  const today = new Date();
+  const todayString = today.toISOString().split('T')[0];
+  
+  if (dueDate < todayString) return 'Overdue';
+  if (dueDate === todayString) return 'Today';
+  
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowString = tomorrow.toISOString().split('T')[0];
+  
+  if (dueDate === tomorrowString) return 'Tomorrow';
+  
+  const threeDaysFromNow = new Date(today);
+  threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3);
+  const threeDaysString = threeDaysFromNow.toISOString().split('T')[0];
+  
+  if (dueDate <= threeDaysString) return 'Soon';
   return 'Later';
 };
 
@@ -255,6 +367,91 @@ const quickAddTodo = async () => {
     console.error("Error adding quick todo:", err);
   } finally {
     isAdding.value = false;
+  }
+};
+
+// Drag and Drop functions
+const handleDragStart = (event, todo) => {
+  draggedTodo.value = todo;
+  event.dataTransfer.effectAllowed = 'move';
+  event.dataTransfer.setData('text/plain', todo.id);
+  
+  // Add visual feedback to the dragged item
+  event.target.style.opacity = '0.5';
+};
+
+const handleDragEnd = (event) => {
+  event.target.style.opacity = '1';
+  draggedTodo.value = null;
+  dragOverZone.value = null;
+};
+
+const handleDragOver = (event, zone) => {
+  event.preventDefault();
+  event.dataTransfer.dropEffect = 'move';
+  dragOverZone.value = zone;
+};
+
+const handleDragLeave = () => {
+  dragOverZone.value = null;
+};
+
+const handleDrop = async (event, targetZone) => {
+  event.preventDefault();
+  dragOverZone.value = null;
+  
+  if (!draggedTodo.value) return;
+  
+  const todo = draggedTodo.value;
+  let updatePayload = {};
+  
+  // Determine what to update based on the target zone
+  switch (targetZone) {
+    case 'completed':
+      updatePayload = { isCompleted: true };
+      break;
+    case 'today':
+      updatePayload = { 
+        isCompleted: false,
+        dueDate: new Date().toISOString().split('T')[0] // Today's date
+      };
+      break;
+    case 'upcoming':
+      updatePayload = { 
+        isCompleted: false,
+        dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] // 7 days from now
+      };
+      break;
+    case 'overdue':
+      updatePayload = { 
+        isCompleted: false,
+        dueDate: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0] // Yesterday
+      };
+      break;
+  }
+  
+  // Update the todo
+  try {
+    const token = localStorage.getItem('token');
+    const response = await axios.put(`${backendUrl}/todos/${todo.id}`, {
+      title: todo.title,
+      description: todo.description,
+      ...updatePayload
+    }, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    });
+    
+    // Update local todos array
+    const index = todos.value.findIndex(t => t.id === todo.id);
+    if (index !== -1) {
+      todos.value[index] = response.data;
+    }
+    
+    draggedTodo.value = null;
+  } catch (err) {
+    console.error("Error updating todo:", err);
   }
 };
 
@@ -401,6 +598,29 @@ watch(user, () => {
   border-color: #feca57;
 }
 
+/* Drag and Drop Styles */
+.summary-item.drag-over {
+  border-color: #42b983 !important;
+  background: linear-gradient(135deg, #42b983, #369870) !important;
+  transform: scale(1.02);
+  box-shadow: 0 12px 30px rgba(66, 185, 131, 0.3);
+}
+
+.drop-indicator {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #42b983;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.7em;
+  font-weight: 600;
+  white-space: nowrap;
+  z-index: 10;
+}
+
 .summary-icon {
   font-size: 2em;
   opacity: 0.8;
@@ -473,6 +693,40 @@ watch(user, () => {
   transform: translateX(5px);
 }
 
+.task-item[draggable="true"] {
+  cursor: grab;
+  user-select: none;
+  position: relative;
+}
+
+.task-item[draggable="true"]:active {
+  cursor: grabbing;
+}
+
+.task-item.being-dragged {
+  opacity: 0.5;
+  transform: rotate(5deg);
+  z-index: 1000;
+}
+
+.drag-handle {
+  color: #666;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: grab;
+  padding: 5px;
+  border-radius: 4px;
+  transition: color 0.3s ease;
+}
+
+.drag-handle:hover {
+  color: #42b983;
+}
+
+.task-item:hover .drag-handle {
+  color: #42b983;
+}
+
 .task-info {
   display: flex;
   flex-direction: column;
@@ -501,6 +755,11 @@ watch(user, () => {
 
 .task-priority.high-priority {
   background-color: #ff6b6b;
+  color: white;
+}
+
+.task-priority.due-today-priority {
+  background-color: #ff9f43;
   color: white;
 }
 
@@ -594,5 +853,45 @@ watch(user, () => {
     align-items: flex-start;
     gap: 10px;
   }
+}
+
+/* Completed Tasks Section */
+.completed-tasks-section {
+  margin-top: 25px;
+  padding-top: 20px;
+  border-top: 2px solid #444;
+}
+
+.completed-tasks-section h4 {
+  color: #42b983;
+  font-size: 1.1em;
+  margin: 0 0 15px 0;
+  font-weight: 600;
+}
+
+.completed-task {
+  opacity: 0.7;
+  border-left-color: #42b983 !important;
+}
+
+.completed-task .task-title {
+  text-decoration: line-through;
+  color: #999;
+}
+
+.completed-task .task-due {
+  color: #42b983;
+  font-size: 0.8em;
+}
+
+.task-status {
+  color: #42b983;
+  font-size: 1.2em;
+  font-weight: bold;
+}
+
+/* Summary item positioning for drop indicator */
+.summary-item {
+  position: relative;
 }
 </style>
