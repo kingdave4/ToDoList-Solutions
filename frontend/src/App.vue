@@ -11,25 +11,56 @@
       </div>
     </div>
 
-    <div class="header-controls">
-      <button @click="handleAddTodoClick" class="add-todo-btn">
-        <span class="plus-icon">+</span> Add Todo
-      </button>
-      <TodoControls
-        v-if="isAuthenticated"
-        v-model:currentFilter="currentFilter"
-        v-model:sortBy="sortBy"
-        v-model:sortDirection="sortDirection"
-      />
+    <div class="nav-buttons" v-if="isAuthenticated">
+      <button @click="currentView = 'dashboard'" :class="{ active: currentView === 'dashboard' }">Dashboard</button>
+      <button @click="currentView = 'todos'" :class="{ active: currentView === 'todos' }">My Todos</button>
     </div>
 
-    <AddTodoModal
-      :show-modal="showModal"
-      :todo="currentTodo"
-      @close-modal="() => { showModal = false; currentTodo = null; }"
-      @add-todo="addTodo"
-      @edit-todo="handleEditTodo"
-    />
+    <div v-if="!isAuthenticated" class="auth-message">
+      <p>Please <a href="#" @click.prevent="showLoginModal = true">login</a> to manage your todos.</p>
+    </div>
+
+    <DashboardPage v-if="isAuthenticated && currentView === 'dashboard'" />
+
+    <div v-if="isAuthenticated && currentView === 'todos'">
+      <div class="header-controls">
+        <button @click="handleAddTodoClick" class="add-todo-btn">
+          <span class="plus-icon">+</span> Add Todo
+        </button>
+        <TodoControls
+          v-model:currentFilter="currentFilter"
+          v-model:sortBy="sortBy"
+          v-model:sortDirection="sortDirection"
+        />
+      </div>
+
+      <AddTodoModal
+        :show-modal="showModal"
+        :todo="currentTodo"
+        @close-modal="() => { showModal = false; currentTodo = null; }"
+        @add-todo="addTodo"
+        @edit-todo="handleEditTodo"
+      />
+
+      <div v-if="loading" class="loading-msg">Loading tasks...</div>
+      <div v-if="error" class="error">{{ error }}</div>
+
+      <ul v-if="!loading && !error" class="todo-list">
+        <TodoItem
+          v-for="todo in filteredAndSortedTodos"
+          :key="todo.id"
+          :todo="todo"
+          @toggle-complete="toggleComplete"
+          @delete-todo="deleteTodo"
+          @edit-todo="editTodo"
+        />
+        <li v-if="filteredAndSortedTodos.length === 0 && !loading" class="no-tasks">
+          {{
+            todos.length > 0 ? "No tasks match the current filter." : "No tasks yet! Add one above."
+          }}
+        </li>
+      </ul>
+    </div>
 
     <LoginModal
       :show-modal="showLoginModal"
@@ -38,39 +69,19 @@
       @signup="handleSignup"
       ref="loginModalRef"
     />
-
-    <div v-if="!isAuthenticated" class="auth-message">
-      <p>Please <a href="#" @click.prevent="showLoginModal = true">login</a> to manage your todos.</p>
-    </div>
-
-    <div v-if="loading" class="loading-msg">Loading tasks...</div>
-    <div v-if="error" class="error">{{ error }}</div>
-
-    <ul v-if="!loading && !error && isAuthenticated" class="todo-list">
-      <TodoItem
-        v-for="todo in filteredAndSortedTodos"
-        :key="todo.id"
-        :todo="todo"
-        @toggle-complete="toggleComplete"
-        @delete-todo="deleteTodo"
-        @edit-todo="editTodo"
-      />
-      <li v-if="filteredAndSortedTodos.length === 0 && !loading" class="no-tasks">
-        {{
-          todos.length > 0 ? "No tasks match the current filter." : "No tasks yet! Add one above."
-        }}
-      </li>
-    </ul>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from "vue";
+import { ref, computed, watch, onMounted } from "vue";
+import { useAuth } from "./composables/useAuth";
 import axios from "axios";
 import TodoItem from "./components/TodoItem.vue";
 import AddTodoModal from "./components/AddTodoModal.vue";
 import LoginModal from "./components/LoginModal.vue";
 import TodoControls from "./components/TodoControls.vue";
+import DashboardPage from "./components/DashboardPage.vue";
+
 
 const todos = ref([]);
 const loading = ref(false);
@@ -81,9 +92,9 @@ const showLoginModal = ref(false);
 const currentTodo = ref(null);
 const loginModalRef = ref(null);
 
-// Auth state
-const user = ref(null);
-const isAuthenticated = computed(() => !!user.value);
+// Auth state from composable
+const { user, isAuthenticated, login, logout, initAuth } = useAuth();
+const currentView = ref('dashboard'); // 'dashboard' or 'todos'
 
 const currentFilter = ref("all");
 const sortBy = ref("createdAt");
@@ -92,7 +103,7 @@ const sortDirection = ref("desc");
 // Helper function to handle authentication errors
 const handleAuthError = (error) => {
   if (error.response?.status === 401) {
-    handleLogout();
+    logout();
     showLoginModal.value = true;
     return true;
   }
@@ -100,7 +111,10 @@ const handleAuthError = (error) => {
 };
 
 async function fetchTodos() {
-  if (!user.value) return;
+  if (!isAuthenticated.value) {
+    todos.value = [];
+    return;
+  }
   
   loading.value = true;
   error.value = null;
@@ -126,7 +140,7 @@ async function fetchTodos() {
 }
 
 async function addTodo(payload) {
-  if (!user.value) {
+  if (!isAuthenticated.value) {
     showLoginModal.value = true;
     return;
   }
@@ -152,7 +166,7 @@ async function addTodo(payload) {
 }
 
 async function toggleComplete(todo) {
-  if (!user.value) return;
+  if (!isAuthenticated.value) return;
   
   error.value = null;
   try {
@@ -180,7 +194,7 @@ async function toggleComplete(todo) {
 }
 
 async function deleteTodo(id) {
-  if (!user.value) return;
+  if (!isAuthenticated.value) return;
   
   error.value = null;
   try {
@@ -216,7 +230,7 @@ async function editTodo(id) {
 }
 
 async function handleEditTodo(payload) {
-  if (!user.value) return;
+  if (!isAuthenticated.value) return;
   
   error.value = null;
   try {
@@ -245,26 +259,26 @@ async function handleEditTodo(payload) {
 // Auth functions
 const handleLogin = async (userData) => {
   try {
-    const response = await axios.post(`${backendUrl}/auth/login`, userData);
-    const { token, user: userdata } = response.data;
+    const response = await axios.post(`${backendUrl}/auth/login`, {
+      email: userData.email,
+      password: userData.password,
+    });
+    const { token, userId, name } = response.data;
+
+    // Use the login function from useAuth composable
+    const userInfo = {
+      userId: userId,
+      name: name,
+    };
     
-    // Set authentication state first
-    isAuthenticated.value = true;
-    user.value = userdata;
+    login(userInfo, token);
     error.value = null;
-    
-    // Then store in localStorage
-    localStorage.setItem("token", token);
-    localStorage.setItem("user", JSON.stringify(userdata));
-    
-    // Close modal and fetch todos
+
     showLoginModal.value = false;
-    
-    // Small delay to ensure state is updated
-    await new Promise(resolve => setTimeout(resolve, 0));
+
+    await new Promise((resolve) => setTimeout(resolve, 100));
     await fetchTodos();
   } catch (error) {
-    // Call the modal's error handler
     if (loginModalRef.value) {
       const errorData = error.response?.data;
       const errorMessage = errorData?.message || "Failed to login";
@@ -275,21 +289,26 @@ const handleLogin = async (userData) => {
 
 async function handleSignup(userData) {
   try {
-    const response = await axios.post(`${backendUrl}/auth/signup`, userData);
+    const response = await axios.post(`${backendUrl}/auth/register`, {
+      name: userData.name,
+      email: userData.email,
+      password: userData.password,
+    });
+
+    // Use the login function from useAuth composable
+    const userInfo = {
+      userId: response.data.userId,
+      name: userData.name,
+    };
     
-    isAuthenticated.value = true;
-    user.value = response.data.user;
+    login(userInfo, response.data.token);
     error.value = null;
-    
-    localStorage.setItem('token', response.data.token);
-    localStorage.setItem('user', JSON.stringify(response.data.user));    
 
     showLoginModal.value = false;
-    
-    await new Promise(resolve => setTimeout(resolve, 0));
+
+    await new Promise((resolve) => setTimeout(resolve, 100));
     await fetchTodos();
   } catch (err) {
-    // Call the modal's error handler
     if (loginModalRef.value) {
       loginModalRef.value.handleError(err.response?.data || { message: "Failed to sign up" });
     }
@@ -297,11 +316,9 @@ async function handleSignup(userData) {
 }
 
 function handleLogout() {
-  user.value = null;
-  isAuthenticated.value = false;
-  localStorage.removeItem('token');
-  localStorage.removeItem('user');
+  logout();
   todos.value = [];
+  currentView.value = 'dashboard';
 }
 
 function handleAddTodoClick() {
@@ -315,13 +332,18 @@ function handleAddTodoClick() {
 
 // Initialize auth state from localStorage
 onMounted(() => {
-  const savedUser = localStorage.getItem('user');
-  const savedToken = localStorage.getItem('token');
-  if (savedUser && savedToken) {
-    user.value = JSON.parse(savedUser);
-    isAuthenticated.value = true;
+  initAuth();
+  if (isAuthenticated.value) {
+    currentView.value = 'dashboard';
   }
   fetchTodos();
+});
+
+// Watch for changes in currentView to fetch todos if switching to todos view
+watch(currentView, (newView) => {
+  if (newView === 'todos' && isAuthenticated.value) {
+    fetchTodos();
+  }
 });
 
 const filteredAndSortedTodos = computed(() => {
@@ -450,6 +472,34 @@ h1 {
 
 .auth-message a:hover {
   text-decoration: underline;
+}
+
+.nav-buttons {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+  gap: 10px;
+}
+
+.nav-buttons button {
+  padding: 10px 20px;
+  border: 1px solid #42b983;
+  background-color: transparent;
+  color: #42b983;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1em;
+  transition: all 0.3s ease;
+}
+
+.nav-buttons button:hover {
+  background-color: #42b983;
+  color: white;
+}
+
+.nav-buttons button.active {
+  background-color: #42b983;
+  color: white;
 }
 
 .header-controls {

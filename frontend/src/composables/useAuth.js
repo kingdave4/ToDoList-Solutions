@@ -3,8 +3,20 @@ import { ref, computed } from "vue";
 const user = ref(null);
 const token = ref(localStorage.getItem("token") || null);
 
+// Initialize user from localStorage on module load
+const savedUser = localStorage.getItem("user");
+if (savedUser && token.value) {
+  try {
+    user.value = JSON.parse(savedUser);
+  } catch (e) {
+    console.error("Failed to parse saved user data:", e);
+    localStorage.removeItem("user");
+    localStorage.removeItem("token");
+  }
+}
+
 export function useAuth() {
-  const isAuthenticated = computed(() => !!user.value);
+  const isAuthenticated = computed(() => !!user.value && !!token.value);
 
   const login = (userData, userToken) => {
     user.value = userData;
@@ -25,14 +37,19 @@ export function useAuth() {
     const savedToken = localStorage.getItem("token");
 
     if (savedUser && savedToken) {
-      user.value = JSON.parse(savedUser);
-      token.value = savedToken;
+      try {
+        user.value = JSON.parse(savedUser);
+        token.value = savedToken;
+      } catch (e) {
+        console.error("Failed to initialize auth:", e);
+        logout();
+      }
     }
   };
 
   return {
-    user: computed(() => user.value),
-    token: computed(() => token.value),
+    user,
+    token,
     isAuthenticated,
     login,
     logout,
