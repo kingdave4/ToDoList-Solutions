@@ -92,6 +92,7 @@
                :key="task.id" 
                class="task-item"
                :class="{ 'being-dragged': draggedTodo && draggedTodo.id === task.id }"
+               :data-task-id="task.id"
                draggable="true"
                @dragstart="handleDragStart($event, task)"
                @dragend="handleDragEnd">
@@ -108,14 +109,13 @@
         <div v-else class="no-tasks">
           <p>🎉 No pending tasks! Add some above or you're all caught up.</p>
         </div>
-        
-        <!-- Completed Tasks Section (Optional) -->
         <div v-if="completedTodos.length > 0" class="completed-tasks-section">
           <h4>✅ Recently Completed</h4>
           <div class="tasks-list">
             <div v-for="task in completedTodos.slice(0, 3)" 
                  :key="task.id" 
                  class="task-item completed-task"
+                 :data-task-id="task.id"
                  draggable="true"
                  @dragstart="handleDragStart($event, task)"
                  @dragend="handleDragEnd">
@@ -222,8 +222,8 @@ async function fetchTodos() {
 // Computed properties for task summaries
 const overdueCount = computed(() => {
   const today = new Date();
-  today.setHours(0, 0, 0, 0); // Start of today
-  const todayString = today.toISOString().split('T')[0]; // YYYY-MM-DD format
+  today.setHours(0, 0, 0, 0);
+  const todayString = today.toISOString().split('T')[0];
   
   return todos.value.filter(todo => 
     !todo.isCompleted && 
@@ -234,7 +234,7 @@ const overdueCount = computed(() => {
 
 const dueTodayCount = computed(() => {
   const today = new Date();
-  const todayString = today.toISOString().split('T')[0]; // YYYY-MM-DD format
+  const todayString = today.toISOString().split('T')[0];
 
   return todos.value.filter(todo => 
     !todo.isCompleted && 
@@ -245,7 +245,7 @@ const dueTodayCount = computed(() => {
 
 const upcomingCount = computed(() => {
   const today = new Date();
-  const todayString = today.toISOString().split('T')[0]; // YYYY-MM-DD format
+  const todayString = today.toISOString().split('T')[0];
 
   return todos.value.filter(todo => 
     !todo.isCompleted && 
@@ -263,7 +263,6 @@ const incompleteTodos = computed(() => {
   return todos.value
     .filter(todo => !todo.isCompleted)
     .sort((a, b) => {
-      // Sort by due date, with no due date at the end
       if (!a.dueDate && !b.dueDate) return 0;
       if (!a.dueDate) return 1;
       if (!b.dueDate) return -1;
@@ -300,21 +299,21 @@ const getPriorityClass = (dueDate) => {
   const today = new Date();
   const todayString = today.toISOString().split('T')[0];
   
-  if (dueDate < todayString) return 'high-priority'; // Overdue - RED
-  if (dueDate === todayString) return 'due-today-priority'; // Due today - ORANGE
+  if (dueDate < todayString) return 'high-priority';
+  if (dueDate === todayString) return 'due-today-priority';
   
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);
   const tomorrowString = tomorrow.toISOString().split('T')[0];
   
-  if (dueDate === tomorrowString) return 'medium-priority'; // Tomorrow - YELLOW
+  if (dueDate === tomorrowString) return 'medium-priority';
   
   const threeDaysFromNow = new Date(today);
   threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3);
   const threeDaysString = threeDaysFromNow.toISOString().split('T')[0];
   
-  if (dueDate <= threeDaysString) return 'medium-priority'; // Within 3 days - YELLOW
-  return 'low-priority'; // Later - BLUE
+  if (dueDate <= threeDaysString) return 'medium-priority';
+  return 'low-priority';
 };
 
 // Helper to get priority text
@@ -405,6 +404,12 @@ const handleDrop = async (event, targetZone) => {
   const todo = draggedTodo.value;
   let updatePayload = {};
   
+  const currentStatus = getCurrentTaskStatus(todo);
+  if (currentStatus === targetZone) {
+    draggedTodo.value = null;
+    return;
+  }
+  
   // Determine what to update based on the target zone
   switch (targetZone) {
     case 'completed':
@@ -413,7 +418,7 @@ const handleDrop = async (event, targetZone) => {
     case 'today':
       updatePayload = { 
         isCompleted: false,
-        dueDate: new Date().toISOString().split('T')[0] // Today's date
+        dueDate: new Date().toISOString().split('T')[0]
       };
       break;
     case 'upcoming':
@@ -430,29 +435,71 @@ const handleDrop = async (event, targetZone) => {
       break;
   }
   
+  // Show loading state
+  const taskElement = document.querySelector(`[data-task-id="${todo.id}"]`);
+  if (taskElement) {
+    taskElement.style.opacity = '0.5';
+  }
+  
   // Update the todo
   try {
     const token = localStorage.getItem('token');
-    const response = await axios.put(`${backendUrl}/todos/${todo.id}`, {
-      title: todo.title,
-      description: todo.description,
-      ...updatePayload
-    }, {
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
-    });
     
-    // Update local todos array
-    const index = todos.value.findIndex(t => t.id === todo.id);
-    if (index !== -1) {
-      todos.value[index] = response.data;
+    if (targetZone === 'completed') {
+      const response = await axios.patch(`${backendUrl}/todos/${todo.id}`, {
+        isCompleted: true
+      }, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      
+      const index = todos.value.findIndex(t => t.id === todo.id);
+      if (index !== -1) {
+        todos.value[index] = response.data;
+      }
+    } else {
+      const response = await axios.put(`${backendUrl}/todos/${todo.id}`, {
+        title: todo.title,
+        description: todo.description,
+        dueDate: updatePayload.dueDate || todo.dueDate,
+        isCompleted: updatePayload.isCompleted !== undefined ? updatePayload.isCompleted : todo.isCompleted
+      }, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      
+      const index = todos.value.findIndex(t => t.id === todo.id);
+      if (index !== -1) {
+        todos.value[index] = response.data;
+      }
     }
     
     draggedTodo.value = null;
   } catch (err) {
     console.error("Error updating todo:", err);
+    alert('Failed to update task. Please try again.');
+  } finally {
+    const taskElement = document.querySelector(`[data-task-id="${todo.id}"]`);
+    if (taskElement) {
+      taskElement.style.opacity = '1';
+    }
   }
+};
+
+// Helper function to determine current task status
+const getCurrentTaskStatus = (todo) => {
+  if (todo.isCompleted) return 'completed';
+  
+  if (!todo.dueDate) return 'upcoming';
+  
+  const today = new Date();
+  const todayString = today.toISOString().split('T')[0];
+  
+  if (todo.dueDate < todayString) return 'overdue';
+  if (todo.dueDate === todayString) return 'today';
+  return 'upcoming';
 };
 
 // Fetch todos when the component is mounted or user changes
