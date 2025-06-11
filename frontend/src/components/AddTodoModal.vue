@@ -37,6 +37,19 @@
           />
         </div>
 
+        <div class="form-group">
+          <label for="modal-todo-priority">Priority</label>
+          <select
+            id="modal-todo-priority"
+            v-model="newTodoPriority"
+            class="form-input priority-select"
+          >
+            <option value="low">Low Priority</option>
+            <option value="medium">Medium Priority</option>
+            <option value="high">High Priority</option>
+          </select>
+        </div>
+
         <div class="modal-actions">
           <button type="submit" class="form-button create-button">
             {{ todo ? 'Save Changes' : 'Create' }}
@@ -69,6 +82,7 @@ const emit = defineEmits(["close-modal", "add-todo", "edit-todo"]);
 const newTodoTitle = ref("");
 const newTodoDescription = ref("");
 const newTodoDueDate = ref("");
+const newTodoPriority = ref("low");
 const titleError = ref("");
 
 watch(
@@ -80,11 +94,13 @@ watch(
         newTodoTitle.value = props.todo.title;
         newTodoDescription.value = props.todo.description || "";
         newTodoDueDate.value = props.todo.dueDate || "";
+        newTodoPriority.value = props.todo.priority || "low";
       } else {
         // Add mode
         newTodoTitle.value = "";
         newTodoDescription.value = "";
         newTodoDueDate.value = "";
+        newTodoPriority.value = "low";
       }
       titleError.value = "";
     }
@@ -102,6 +118,7 @@ const handleSubmit = () => {
     title: newTodoTitle.value.trim(),
     description: newTodoDescription.value.trim() || null,
     dueDate: newTodoDueDate.value || null,
+    priority: newTodoPriority.value,
   };
 
   if (props.todo) {
@@ -200,6 +217,17 @@ const closeModal = () => {
 }
 .date-input {
   min-width: 140px;
+}
+
+.priority-select {
+  min-width: 140px;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 16px;
+  padding-right: 30px;
 }
 
 .input-error {
