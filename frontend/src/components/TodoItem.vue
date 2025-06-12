@@ -1,7 +1,12 @@
 <template>
   <li class="todo-card" :class="{ completed: todo.isCompleted }">
     <div class="todo-details">
-      <span class="todo-title">{{ todo.title }}</span>
+      <div class="todo-header">
+        <span class="todo-title">{{ todo.title }}</span>
+        <span class="priority-badge" :class="getPriorityClass(todo.priority)">
+          {{ getPriorityText(todo.priority) }}
+        </span>
+      </div>
       <p v-if="todo.description" class="todo-description">{{ todo.description }}</p>
       <div class="todo-meta-info">
         <span v-if="todo.dueDate">Due: {{ formatDate(todo.dueDate) }}</span>
@@ -42,6 +47,18 @@ function formatTime(dateString) {
   return date.toLocaleTimeString(undefined, options);
 }
 
+function getPriorityClass(priority) {
+  if (priority === 'high') return 'priority-high';
+  if (priority === 'medium') return 'priority-medium';
+  return 'priority-low';
+}
+
+function getPriorityText(priority) {
+  if (priority === 'high') return 'High Priority';
+  if (priority === 'medium') return 'Medium Priority';
+  return 'Low Priority';
+}
+
 const handleToggleComplete = () => {
   emit("toggle-complete", props.todo);
 };
@@ -75,14 +92,46 @@ const handleEdit = () => {
   flex-grow: 1;
   margin-right: 15px;
 }
+
+.todo-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
 .todo-title {
   font-weight: 600;
   font-size: 1.3em;
-  margin-bottom: 8px;
-  display: block;
   color: #f0f0f0;
   word-break: break-word;
 }
+
+.priority-badge {
+  font-size: 0.7em;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.priority-high {
+  background-color: #ff6b6b;
+  color: white;
+}
+
+.priority-medium {
+  background-color: #ffd93d;
+  color: #333;
+}
+
+.priority-low {
+  background-color: #6bcf7f;
+  color: white;
+}
+
 .todo-description {
   font-size: 1em;
   color: #bbb;
@@ -156,5 +205,8 @@ const handleEdit = () => {
 }
 .todo-card.completed .todo-meta-info {
   color: #666;
+}
+.todo-card.completed .priority-badge {
+  opacity: 0.7;
 }
 </style>
