@@ -15,6 +15,7 @@
       <button @click="currentView = 'dashboard'" :class="{ active: currentView === 'dashboard' }">Dashboard</button>
       <button @click="currentView = 'todos'" :class="{ active: currentView === 'todos' }">My Todos</button>
       <button @click="currentView = 'calendar'" :class="{ active: currentView === 'calendar' }">Calendar</button>
+      <button @click="currentView = 'notes'" :class="{ active: currentView === 'notes' }">Notes</button>
     </div>
 
     <div v-if="!isAuthenticated" class="auth-message">
@@ -24,6 +25,8 @@
     <DashboardPage v-if="isAuthenticated && currentView === 'dashboard'" />
 
     <CalendarPage v-if="isAuthenticated && currentView === 'calendar'" />
+
+    <Notes v-if="isAuthenticated && currentView === 'notes'" :tasks="todos" />
 
     <div v-if="isAuthenticated && currentView === 'todos'">
       <div class="header-controls">
@@ -85,6 +88,7 @@ import LoginModal from "./components/LoginModal.vue";
 import TodoControls from "./components/TodoControls.vue";
 import DashboardPage from "./components/DashboardPage.vue";
 import CalendarPage from "./components/CalendarPage.vue";
+import Notes from "./components/Notes.vue";
 
 
 const todos = ref([]);
