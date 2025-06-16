@@ -2,6 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const todoRoutes = require("./routes/todos");
 const authRoutes = require("./routes/auth");
+const notesRoutes = require("./routes/notes");
 const auth = require("./middleware/auth");
 
 const app = express();
@@ -12,6 +13,7 @@ app.use(express.json());
 
 app.use("/todos", auth, todoRoutes);
 app.use("/auth", authRoutes);
+app.use("/notes", auth, notesRoutes);
 
 app.get("/", (req, res) => {
   res.send("Todo Backend is running!");
