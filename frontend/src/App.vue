@@ -1,72 +1,88 @@
 <template>
-  <div id="app">
-    <div class="app-header">
-      <h1>BetaTask</h1>
-      <div class="auth-section">
-        <div v-if="isAuthenticated" class="user-info">
-          <span class="welcome-text">Welcome, {{ user.name }}!</span>
-          <button @click="handleLogout" class="logout-btn">Logout</button>
+  <div id="app" class="main-container">
+    <header class="app-header">
+      <div class="app-title">BetaTask</div>
+      <div class="auth-section" v-if="isAuthenticated">
+        <span class="welcome-text">Welcome, {{ user.name }}!</span>
+        <button @click="handleLogout" class="logout-btn">Logout</button>
+      </div>
+    </header>
+
+    <main class="content-area">
+      <section v-if="!isAuthenticated" class="hero-section">
+        <div class="hero-content">
+          <h1>Welcome to BetaTask</h1>
+          <p>Organize your life, one task at a time.</p>
+          <button @click="showLoginModal = true" class="login-btn">Get Started</button>
         </div>
-        <button v-else @click="showLoginModal = true" class="login-btn">Login</button>
-      </div>
-    </div>
+                 <div class="hero-image">
+           <!-- Placeholder for future illustration -->
+           <div class="placeholder-graphic">
+             <div class="check-circle">✓</div>
+             <div class="task-lines">
+               <div class="line"></div>
+               <div class="line"></div>
+               <div class="line"></div>
+             </div>
+           </div>
+         </div>
+      </section>
 
-    <div class="nav-buttons" v-if="isAuthenticated">
-      <button @click="currentView = 'dashboard'" :class="{ active: currentView === 'dashboard' }">Dashboard</button>
-      <button @click="currentView = 'todos'" :class="{ active: currentView === 'todos' }">My Todos</button>
-      <button @click="currentView = 'calendar'" :class="{ active: currentView === 'calendar' }">Calendar</button>
-      <button @click="currentView = 'notes'" :class="{ active: currentView === 'notes' }">Notes</button>
-    </div>
+      <section v-if="isAuthenticated" class="authenticated-layout">
+        <aside class="sidebar">
+          <div class="nav-buttons">
+                         <button @click="currentView = 'dashboard'" :class="{ active: currentView === 'dashboard' }">Dashboard</button>
+             <button @click="currentView = 'todos'" :class="{ active: currentView === 'todos' }">My Todos</button>
+             <button @click="currentView = 'calendar'" :class="{ active: currentView === 'calendar' }">Calendar</button>
+             <button @click="currentView = 'notes'" :class="{ active: currentView === 'notes' }">Notes</button>
+          </div>
+        </aside>
 
-    <div v-if="!isAuthenticated" class="auth-message">
-      <p>Please <a href="#" @click.prevent="showLoginModal = true">login</a> to manage your todos.</p>
-    </div>
+        <div class="main-content-view">
+          <div v-if="currentView === 'dashboard'">
+            <DashboardPage />
+          </div>
 
-    <DashboardPage v-if="isAuthenticated && currentView === 'dashboard'" />
+          <div v-if="currentView === 'calendar'">
+            <CalendarPage />
+          </div>
 
-    <CalendarPage v-if="isAuthenticated && currentView === 'calendar'" />
+          <div v-if="currentView === 'notes'">
+             <Notes :tasks="todos" />
+          </div>
 
-    <Notes v-if="isAuthenticated && currentView === 'notes'" :tasks="todos" />
-
-    <div v-if="isAuthenticated && currentView === 'todos'">
-      <div class="header-controls">
-        <button @click="handleAddTodoClick" class="add-todo-btn">
-          <span class="plus-icon">+</span> Add Todo
-        </button>
-        <TodoControls
-          v-model:currentFilter="currentFilter"
-          v-model:sortBy="sortBy"
-          v-model:sortDirection="sortDirection"
-        />
-      </div>
-
-      <AddTodoModal
-        :show-modal="showModal"
-        :todo="currentTodo"
-        @close-modal="() => { showModal = false; currentTodo = null; }"
-        @add-todo="addTodo"
-        @edit-todo="handleEditTodo"
-      />
-
-      <div v-if="loading" class="loading-msg">Loading tasks...</div>
-      <div v-if="error" class="error">{{ error }}</div>
-
-      <ul v-if="!loading && !error" class="todo-list">
-        <TodoItem
-          v-for="todo in filteredAndSortedTodos"
-          :key="todo.id"
-          :todo="todo"
-          @toggle-complete="toggleComplete"
-          @delete-todo="deleteTodo"
-          @edit-todo="editTodo"
-        />
-        <li v-if="filteredAndSortedTodos.length === 0 && !loading" class="no-tasks">
-          {{
-            todos.length > 0 ? "No tasks match the current filter." : "No tasks yet! Add one above."
-          }}
-        </li>
-      </ul>
-    </div>
+          <div v-if="currentView === 'todos'">
+            <div class="header-controls">
+              <button @click="handleAddTodoClick" class="add-todo-btn">
+                <span class="plus-icon">+</span> Add Todo
+              </button>
+              <TodoControls
+                v-model:currentFilter="currentFilter"
+                v-model:sortBy="sortBy"
+                v-model:sortDirection="sortDirection"
+              />
+            </div>
+            <div v-if="loading" class="loading-msg">Loading tasks...</div>
+            <div v-if="error" class="error">{{ error }}</div>
+            <ul v-if="!loading && !error" class="todo-list">
+              <TodoItem
+                v-for="todo in filteredAndSortedTodos"
+                :key="todo.id"
+                :todo="todo"
+                @toggle-complete="toggleComplete"
+                @delete-todo="deleteTodo"
+                @edit-todo="editTodo"
+              />
+              <li v-if="filteredAndSortedTodos.length === 0 && !loading" class="no-tasks">
+                {{
+                  todos.length > 0 ? "No tasks match the current filter." : "No tasks yet! Add one above."
+                }}
+              </li>
+            </ul>
+          </div>
+        </div>
+      </section>
+    </main>
 
     <LoginModal
       :show-modal="showLoginModal"
@@ -75,13 +91,21 @@
       @signup="handleSignup"
       ref="loginModalRef"
     />
+    <AddTodoModal
+      :show-modal="showModal"
+      :todo="currentTodo"
+      @close-modal="() => { showModal = false; currentTodo = null; }"
+      @add-todo="addTodo"
+      @edit-todo="handleEditTodo"
+    />
   </div>
 </template>
 
 <script setup>
 import { ref, computed, watch, onMounted } from "vue";
 import { useAuth } from "./composables/useAuth";
-import axios from "axios";
+import { db } from "./firebase";
+import { collection, query, where, onSnapshot, addDoc, doc, updateDoc, deleteDoc } from "firebase/firestore";
 import TodoItem from "./components/TodoItem.vue";
 import AddTodoModal from "./components/AddTodoModal.vue";
 import LoginModal from "./components/LoginModal.vue";
@@ -90,59 +114,52 @@ import DashboardPage from "./components/DashboardPage.vue";
 import CalendarPage from "./components/CalendarPage.vue";
 import Notes from "./components/Notes.vue";
 
-
 const todos = ref([]);
 const loading = ref(false);
 const error = ref(null);
-const backendUrl = "http://localhost:3000";
 const showModal = ref(false);
 const showLoginModal = ref(false);
 const currentTodo = ref(null);
 const loginModalRef = ref(null);
 
 // Auth state from composable
-const { user, isAuthenticated, login, logout, initAuth } = useAuth();
+const { user, isAuthenticated, login, signup, logout, initAuth } = useAuth();
 const currentView = ref('dashboard'); // 'dashboard' or 'todos'
 
 const currentFilter = ref("all");
 const sortBy = ref("createdAt");
 const sortDirection = ref("desc");
 
-// Helper function to handle authentication errors
-const handleAuthError = (error) => {
-  if (error.response?.status === 401) {
-    logout();
-    showLoginModal.value = true;
-    return true;
-  }
-  return false; 
-};
-
 async function fetchTodos() {
-  if (!isAuthenticated.value) {
+  if (!isAuthenticated.value || !user.value?.userId) {
     todos.value = [];
     return;
   }
   
   loading.value = true;
   error.value = null;
+  
   try {
-    const token = localStorage.getItem('token');
-    const response = await axios.get(`${backendUrl}/todos`, {
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
+    const todosCollectionRef = collection(db, "todos");
+    // Only fetch todos that belong to the current user
+    const q = query(todosCollectionRef, where("userId", "==", user.value.userId));
+
+    onSnapshot(q, (snapshot) => {
+      const fetchedTodos = [];
+      snapshot.forEach((doc) => {
+        fetchedTodos.push({ id: doc.id, ...doc.data() });
+      });
+      todos.value = fetchedTodos;
+      loading.value = false;
+      console.log("User-specific todos fetched from Firestore:", fetchedTodos);
+    }, (err) => {
+      console.error("Error fetching todos from Firestore:", err);
+      error.value = "Failed to load todos from Firestore.";
+      loading.value = false;
     });
-    todos.value = response.data;
   } catch (err) {
-    console.error("Error fetching todos:", err);
-    if (handleAuthError(err)) {
-      error.value = "Your session has expired. Please log in again.";
-    } else {
-      error.value = "Failed to load todos. Please ensure the backend is running.";
-    }
-    todos.value = [];
-  } finally {
+    console.error("Error setting up todos listener:", err);
+    error.value = "Failed to load todos.";
     loading.value = false;
   }
 }
@@ -155,21 +172,18 @@ async function addTodo(payload) {
 
   error.value = null;
   try {
-    const token = localStorage.getItem('token');
-    const response = await axios.post(`${backendUrl}/todos`, payload, {
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
-    });
-    todos.value.unshift(response.data);
+    const todoData = {
+      ...payload,
+      createdAt: new Date().toISOString(),
+      isCompleted: false,
+      userId: user.value?.userId,
+    };
+
+    await addDoc(collection(db, "todos"), todoData);
     showModal.value = false;
   } catch (err) {
     console.error("Error adding todo:", err);
-    if (handleAuthError(err)) {
-      error.value = "Your session has expired. Please log in again.";
-    } else {
-      error.value = err.response?.data?.message || "Failed to add todo. Please try again.";
-    }
+    error.value = "Failed to add todo. Please try again.";
   }
 }
 
@@ -178,26 +192,13 @@ async function toggleComplete(todo) {
   
   error.value = null;
   try {
-    const token = localStorage.getItem('token');
-    const updatedStatus = !todo.isCompleted;
-    const response = await axios.patch(`${backendUrl}/todos/${todo.id}`, {
-      isCompleted: updatedStatus,
-    }, {
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
+    const todoRef = doc(db, "todos", todo.id);
+    await updateDoc(todoRef, {
+      isCompleted: !todo.isCompleted,
     });
-    const index = todos.value.findIndex((t) => t.id === todo.id);
-    if (index !== -1) {
-      todos.value[index].isCompleted = response.data.isCompleted;
-    }
   } catch (err) {
     console.error("Error updating todo status:", err);
-    if (handleAuthError(err)) {
-      error.value = "Your session has expired. Please log in again.";
-    } else {
-      error.value = "Failed to update task status.";
-    }
+    error.value = "Failed to update task status.";
   }
 }
 
@@ -206,20 +207,10 @@ async function deleteTodo(id) {
   
   error.value = null;
   try {
-    const token = localStorage.getItem('token');
-    await axios.delete(`${backendUrl}/todos/${id}`, {
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
-    });
-    todos.value = todos.value.filter((t) => t.id !== id);
+    await deleteDoc(doc(db, "todos", id));
   } catch (err) {
     console.error("Error deleting todo:", err);
-    if (handleAuthError(err)) {
-      error.value = "Your session has expired. Please log in again.";
-    } else {
-      error.value = "Failed to delete task.";
-    }
+    error.value = "Failed to delete task.";
   }
 }
 
@@ -242,92 +233,52 @@ async function handleEditTodo(payload) {
   
   error.value = null;
   try {
-    const token = localStorage.getItem('token');
-    const response = await axios.put(`${backendUrl}/todos/${currentTodo.value.id}`, payload, {
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
-    });
-    const index = todos.value.findIndex((t) => t.id === currentTodo.value.id);
-    if (index !== -1) {
-      todos.value[index] = response.data;
-    }
+    const todoRef = doc(db, "todos", currentTodo.value.id);
+    await updateDoc(todoRef, payload);
     showModal.value = false;
     currentTodo.value = null;
   } catch (err) {
     console.error("Error editing todo:", err);
-    if (handleAuthError(err)) {
-      error.value = "Your session has expired. Please log in again.";
-    } else {
-      error.value = "Failed to edit task.";
-    }
+    error.value = "Failed to edit task.";
   }  
 }
 
 // Auth functions
 const handleLogin = async (userData) => {
   try {
-    const response = await axios.post(`${backendUrl}/auth/login`, {
-      email: userData.email,
-      password: userData.password,
-    });
-    const { token, userId, name } = response.data;
-
-    // Use the login function from useAuth composable
-    const userInfo = {
-      userId: userId,
-      name: name,
-    };
-    
-    login(userInfo, token);
+    await login(userData.email, userData.password);
     error.value = null;
-
     showLoginModal.value = false;
-
-    await new Promise((resolve) => setTimeout(resolve, 100));
     await fetchTodos();
-  } catch (error) {
+  } catch (err) {
     if (loginModalRef.value) {
-      const errorData = error.response?.data;
-      const errorMessage = errorData?.message || "Failed to login";
-      loginModalRef.value.handleError({ message: errorMessage });
+      loginModalRef.value.handleError(err);
     }
   }
 };
 
-async function handleSignup(userData) {
+const handleSignup = async (userData) => {
   try {
-    const response = await axios.post(`${backendUrl}/auth/register`, {
-      name: userData.name,
-      email: userData.email,
-      password: userData.password,
-    });
-
-    // Use the login function from useAuth composable
-    const userInfo = {
-      userId: response.data.userId,
-      name: userData.name,
-    };
-    
-    login(userInfo, response.data.token);
+    await signup(userData.email, userData.password, userData.name);
     error.value = null;
-
     showLoginModal.value = false;
-
-    await new Promise((resolve) => setTimeout(resolve, 100));
     await fetchTodos();
   } catch (err) {
     if (loginModalRef.value) {
-      loginModalRef.value.handleError(err.response?.data || { message: "Failed to sign up" });
+      loginModalRef.value.handleError(err);
     }
   }
-}
+};
 
-function handleLogout() {
-  logout();
-  todos.value = [];
-  currentView.value = 'dashboard';
-}
+const handleLogout = async () => {
+  try {
+    await logout();
+    todos.value = [];
+    currentView.value = 'dashboard';
+  } catch (err) {
+    error.value = "Failed to logout. Please try again.";
+  }
+};
 
 function handleAddTodoClick() {
   if (!isAuthenticated.value) {
@@ -340,7 +291,6 @@ function handleAddTodoClick() {
 
 // Initialize auth state from localStorage
 onMounted(() => {
-  initAuth();
   if (isAuthenticated.value) {
     currentView.value = 'dashboard';
   }
@@ -397,41 +347,38 @@ const filteredAndSortedTodos = computed(() => {
 </script>
 
 <style>
+/* Basic Reset and Body Styles */
 body {
-  background-color: #1a1a1a;
-  color: #e0e0e0;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  line-height: 1.6;
+  color: #333; /* Darker text for better contrast on light background */
+  background-color: #f7f6f3; /* Light background color */
   margin: 0;
   padding: 0;
 }
 
-#app {
-  margin-top: 40px;
-  max-width: 850px;
-  margin-left: auto;
-  margin-right: auto;
-  padding: 20px;
+.main-container {
+  max-width: 1200px; /* Increased max-width for sidebar layout */
+  margin: 0 auto; /* Center the container */
+  padding: 0 20px; /* Horizontal padding */
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh; /* Ensure container takes at least full viewport height */
 }
 
 .app-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 30px;
+  padding: 20px 0; /* Padding top and bottom */
+  border-bottom: 1px solid #eee; /* Subtle separator */
 }
 
-.app-header h1 {
+.app-title {
+  font-size: 1.8em; /* Slightly smaller header title */
   margin: 0;
-}
-
-h1 {
-  text-align: center;
-  color: #e0e0e0;
-  margin-bottom: 30px;
-  font-weight: 300;
-  font-size: 2.5em;
+  color: #333;
+  font-weight: bold;
 }
 
 .auth-section {
@@ -440,74 +387,200 @@ h1 {
   gap: 15px;
 }
 
-.user-info {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-}
-
 .welcome-text {
-  color: #ccc;
+  color: #555;
   font-size: 0.9em;
 }
 
-.login-btn, .logout-btn {
+.logout-btn {
   padding: 8px 16px;
-  border: 1px solid #42b983;
+  border: 1px solid #ccc;
   background-color: transparent;
-  color: #42b983;
+  color: #555;
   border-radius: 4px;
   cursor: pointer;
   font-size: 0.9em;
   transition: all 0.3s ease;
 }
 
-.login-btn:hover, .logout-btn:hover {
-  background-color: #42b983;
-  color: white;
+.logout-btn:hover {
+  background-color: #eee;
 }
 
-.auth-message {
-  text-align: center;
-  padding: 40px;
-  color: #ccc;
+
+.content-area {
+  flex-grow: 1; /* Allow content area to take up remaining space */
+  padding: 20px 0;
 }
 
-.auth-message a {
-  color: #42b983;
-  text-decoration: none;
+.hero-section {
+  display: flex; /* Use flexbox to align content and image */
+  align-items: center; /* Vertically center content */
+  justify-content: space-between; /* Space out content and image */
+  padding: 80px 40px; /* Ample padding, maybe more horizontal */
+  background-color: #fff; /* White background for hero */
+  margin-bottom: 40px; /* Space below hero */
+  border-radius: 8px; /* Rounded corners */
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05); /* Subtle shadow */
+  flex-wrap: wrap; /* Allow wrapping on smaller screens */
 }
 
-.auth-message a:hover {
-  text-decoration: underline;
+.hero-content {
+  max-width: 50%; /* Limit content width */
+  flex-grow: 1; /* Allow content to grow */
+}
+
+.hero-section h1 {
+  font-size: 3em; /* Large hero title */
+  margin-bottom: 15px;
+  color: #333;
+}
+
+ .hero-section p {
+   font-size: 1.2em;
+   color: #555;
+   margin-bottom: 30px;
+ }
+
+ .hero-section .login-btn {
+   background-color: #007bff;
+   color: white;
+   border: none;
+   padding: 12px 30px;
+   font-size: 1.1em;
+   border-radius: 6px;
+   cursor: pointer;
+   transition: background-color 0.3s ease;
+ }
+
+ .hero-section .login-btn:hover {
+   background-color: #0056b3;
+ }
+
+.hero-image {
+  max-width: 40%; /* Limit image width */
+  flex-shrink: 0; /* Prevent image from shrinking too much */
+}
+
+ .placeholder-graphic {
+   display: flex;
+   align-items: center;
+   justify-content: center;
+   gap: 20px;
+   padding: 40px;
+   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+   border-radius: 12px;
+   box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+ }
+
+ .check-circle {
+   width: 80px;
+   height: 80px;
+   background-color: #4CAF50;
+   border-radius: 50%;
+   display: flex;
+   align-items: center;
+   justify-content: center;
+   color: white;
+   font-size: 2em;
+   font-weight: bold;
+   box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
+ }
+
+ .task-lines {
+   display: flex;
+   flex-direction: column;
+   gap: 8px;
+ }
+
+ .task-lines .line {
+   height: 4px;
+   background-color: rgba(255, 255, 255, 0.8);
+   border-radius: 2px;
+ }
+
+ .task-lines .line:nth-child(1) {
+   width: 120px;
+ }
+
+ .task-lines .line:nth-child(2) {
+   width: 90px;
+ }
+
+ .task-lines .line:nth-child(3) {
+   width: 110px;
+ }
+
+/* Add responsive adjustments for smaller screens */
+@media (max-width: 768px) {
+  .hero-section {
+    flex-direction: column; /* Stack content and image vertically */
+    padding: 40px 20px;
+  }
+
+  .hero-content,
+  .hero-image {
+    max-width: 100%; /* Allow both to take full width */
+    text-align: center; /* Center text content */
+  }
+
+  .hero-image {
+    margin-top: 30px; /* Add space between content and image */
+  }
+}
+
+.authenticated-layout {
+  display: flex; /* Use flexbox for sidebar and content */
+  gap: 30px; /* Space between sidebar and content */
+}
+
+.sidebar {
+  width: 250px; /* Fixed sidebar width */
+  flex-shrink: 0; /* Prevent sidebar from shrinking */
+  background-color: #fff; /* White background for sidebar */
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
 }
 
 .nav-buttons {
   display: flex;
-  justify-content: center;
-  margin-bottom: 20px;
-  gap: 10px;
+  flex-direction: column; /* Stack navigation buttons vertically */
+  gap: 10px; /* Space between buttons */
 }
 
 .nav-buttons button {
-  padding: 10px 20px;
-  border: 1px solid #42b983;
+  display: block; /* Make buttons block level */
+  width: 100%; /* Full width buttons */
+  text-align: left; /* Align text to the left */
+  padding: 10px 15px;
+  border: none;
   background-color: transparent;
-  color: #42b983;
-  border-radius: 4px;
+  color: #555;
   cursor: pointer;
   font-size: 1em;
-  transition: all 0.3s ease;
+  transition: background-color 0.3s ease, color 0.3s ease;
+  border-radius: 4px;
 }
 
 .nav-buttons button:hover {
-  background-color: #42b983;
-  color: white;
+  background-color: #f0f0f0;
+  color: #000;
 }
 
 .nav-buttons button.active {
-  background-color: #42b983;
-  color: white;
+  background-color: #e9e9e9;
+  color: #000;
+  font-weight: bold;
+}
+
+
+.main-content-view {
+  flex-grow: 1; /* Allow main content to take up remaining space */
+  background-color: #fff; /* White background for content */
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
 }
 
 .header-controls {
@@ -520,7 +593,7 @@ h1 {
 }
 
 .add-todo-btn {
-  background-color: #42b983;
+  background-color: #007bff; /* Example accent color */
   color: white;
   border: none;
   padding: 10px 18px;
@@ -534,7 +607,7 @@ h1 {
   white-space: nowrap;
 }
 .add-todo-btn:hover {
-  background-color: #36a476;
+  background-color: #0056b3;
 }
 .plus-icon {
   font-size: 1.2em;
@@ -564,4 +637,7 @@ h1 {
   border-radius: 4px;
   border: 1px solid rgba(255, 107, 107, 0.3);
 }
+
+/* Add more styles for other sections and components */
+
 </style>
