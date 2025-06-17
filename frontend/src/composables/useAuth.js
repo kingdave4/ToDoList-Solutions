@@ -35,7 +35,6 @@ export function useAuth() {
       );
       return userCredential.user;
     } catch (error) {
-      console.error("Login error:", error); // Log the error for debugging
       let errorMessage = "Login failed. Please try again.";
       if (error.code === 'auth/user-not-found') {
         errorMessage = "No user found with this email.";
@@ -55,13 +54,13 @@ export function useAuth() {
         email,
         password
       );
-      // Update the user's display name
+     
       await userCredential.user.updateProfile({
         displayName: name,
       });
       return userCredential.user;
     } catch (error) {
-      console.error("Signup error:", error); // Log the error for debugging
+      console.error("Signup error:", error);
       let errorMessage = "Signup failed. Please try again.";
       if (error.code === 'auth/email-already-in-use') {
         errorMessage = "This email address is already in use.";
