@@ -1,77 +1,87 @@
-# Migrated Todo Application
+# Todo Application
 
-This repository contains the migrated frontend (Vue/Vite) and backend (Node/Express) code for a simple Todo application.
+This is a simple Todo application with a frontend built using Vue 3 and Vite, and a backend built using Node.js and Express.
 
 ## Project Overview
 
-The application allows users to manage a list of tasks (todos). Features include:
+The application allows users to manage a list of tasks (todos). Key features include:
 
-- Creating new todos with title, description, and due date.
-- Viewing the list of todos.
-- Marking todos as complete or incomplete.
-- Deleting todos.
-- Filtering todos (all, incomplete, completed).
-- Sorting todos (by creation date, by due date).
+- Creating, viewing, marking as complete, and deleting todos.
+- User authentication (registration and login).
 
-## Authentication
+## How to Run Locally
 
-The application now includes user authentication features:
-
-- User registration with username and password.
-- User login and session management using JWT (JSON Web Tokens).
-- Protected API routes requiring authentication for access (e.g., creating, updating, deleting todos).
-- User-specific todo lists, ensuring users only see and manage their own tasks.
-
-The backend uses a simple Express server and stores data in a `todos.json` file. The frontend is built with Vue 3 and Vite.
-
-## How to Run
+To run this project on your local machine, follow these steps:
 
 ### Prerequisites
 
 - Node.js and npm (or yarn) installed.
 
-### Backend Setup
+### 1. Clone the Repository
 
-1. Navigate to the `backend` directory:
-   ```bash
-   cd backend
-   ```
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-3. Start the server (defaults to port 3000):
-   ```bash
-   node server.js
-   ```
-   The backend API will be running at `http://localhost:3000`.
+If you haven't already, clone the repository from GitHub:
 
-4. **Environment Variables:**
-   Create a `.env` file in the `backend` directory with the following content:
-   ```
-   JWT_SECRET=your_jwt_secret_key_here
-   ADMIN_USERNAME=admin
-   ADMIN_PASSWORD=adminpass
-   ```
-   **Note:** Replace `your_jwt_secret_key_here` with a strong, unique secret for production environments.
+```bash
+git clone <repository_url>
+```
 
-### Frontend Setup
+Replace `<repository_url>` with the actual URL of the GitHub repository.
 
-1. Navigate to the `frontend` directory:
-   ```bash
-   cd frontend
-   ```
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-3. Start the development server (usually runs on port 5173):
-   ```bash
-   npm run dev
-   ```
-4. Open your browser and navigate to the URL provided by Vite (e.g., `http://localhost:5173`).
+### 2. Backend Setup
+
+Navigate to the `backend` directory, install dependencies, and start the server:
+
+```bash
+cd backend
+npm install
+```
+
+Create a `.env` file in the `backend` directory with the following content:
+
+```
+JWT_SECRET=your_jwt_secret_key_here
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=adminpass
+```
+
+**Note:** Replace `your_jwt_secret_key_here` with a strong, unique secret.
+
+Start the backend server:
+
+```bash
+node server.js
+```
+
+The backend API will be running at `http://localhost:3000`.
+
+### 3. Frontend Setup
+
+Open a new terminal, navigate to the `frontend` directory, install dependencies, and start the development server:
+
+```bash
+cd ../frontend
+npm install
+npm run dev
+```
+
+Open your browser and navigate to the URL provided by Vite (e.g., `http://localhost:5173`).
+
+## How to Run with Docker
+
+To run this project using Docker, ensure you have Docker installed and running on your machine.
+
+1.  Navigate to the project root directory (where the `docker-compose.yml` file is located).
+2.  Run the following command to build and start the application containers:
+
+    ```bash
+    docker compose up --build
+    ```
+
+3.  The frontend will be accessible at `http://localhost`.
 
 ## How to Test (Backend)
+
+To run the backend test cases, follow these steps:
 
 1. Navigate to the `backend` directory:
    ```bash
@@ -83,53 +93,6 @@ The backend uses a simple Express server and stores data in a `todos.json` file.
    ```
    This will execute the API endpoint tests located in the `tests` directory.
 
-## Running with Docker
-
-1.  Make sure you have Docker installed and running.
-2.  Navigate to the project root directory.
-3.  Run the following command to build and start the application:
-
-    ```bash
-    docker compose up --build
-    ```
-
-4.  The frontend will be accessible at `http://localhost`.
-
-## Running with Kubernetes
-
-1.  Make sure you have Minikube and kubectl installed and running.
-2.  Navigate to the project root directory.
-3.  Start Minikube:
-
-    ```bash
-    minikube start
-    ```
-
-4.  Build the Docker images:
-
-    ```bash
-    minikube docker-env
-    eval $(minikube docker-env)
-    docker build -t backend:latest ./backend
-    docker build -t frontend:latest ./frontend
-    ```
-
-5.  Apply the Kubernetes configurations:
-
-    ```bash
-    kubectl apply -f backend-deployment.yaml
-    kubectl apply -f backend-service.yaml
-    kubectl apply -f frontend-deployment.yaml
-    kubectl apply -f frontend-service.yaml
-    ```
-
-6.  Get the frontend service URL:
-
-    ```bash
-    minikube service frontend-service --url
-    ```
-
-7.  Open your browser and navigate to the URL provided by Minikube.
 ## Design Choices
 
 ### Authentication
@@ -147,17 +110,3 @@ The backend uses a simple Express server and stores data in a `todos.json` file.
 - **Testing Strategy (Backend):**
   - **Framework:** Jest is used as the test runner, along with `supertest` for making HTTP requests to the API endpoints during testing.
   - **Approach:** Integration tests are written to cover the API endpoints directly. The `dataService` and `userService` modules are mocked using `jest.mock()` to isolate the route handlers from the actual file system during tests, allowing for predictable and controlled test scenarios. Tests cover success cases, error handling (e.g., 404 Not Found, 400 Bad Request, 401 Unauthorized), and edge cases (e.g., missing data, invalid tokens).
-
-## Assumptions
-
-- Node.js and npm are installed on the system running the application.
-- The backend server is expected to run on port 3000. If this port is occupied, the frontend might need its `backendUrl` variable updated in `src/App.vue`.
-- The `data/todos.json` and `data/users.json` files will be created automatically if they don't exist when the backend first tries to write to them.
-- Environment variables (JWT_SECRET, ADMIN_USERNAME, ADMIN_PASSWORD) are expected to be set for the backend.
-
-## Trade-offs (Optional)
-
-- **JSON File Storage:** While simple, using a JSON file for data storage is not suitable for production due to potential race conditions, lack of scalability, and inefficient querying. A database would be a better choice for real-world applications.
-- **Basic Error Handling:** Frontend error handling is basic and primarily displays messages to the user. More robust error handling and user feedback mechanisms could be implemented.
-- **No Frontend Tests:** Due to time constraints or focus, frontend unit/component tests were not included in this migration scope.
-- **Basic Frontend Authentication Flow:** The frontend handles basic login/logout. More advanced features like "remember me," password reset, or account recovery are not implemented.
