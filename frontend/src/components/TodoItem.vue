@@ -24,6 +24,9 @@
 </template>
 
 <script setup>
+import { db } from "../firebase";
+import { doc, updateDoc, deleteDoc } from "firebase/firestore";
+
 const props = defineProps({
   todo: {
     type: Object,
@@ -31,7 +34,7 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(["toggle-complete", "delete-todo", "edit-todo"]);
+const emit = defineEmits(["edit-todo"]);
 
 function formatDate(dateString) {
   if (!dateString) return "";
@@ -59,12 +62,25 @@ function getPriorityText(priority) {
   return 'Low Priority';
 }
 
-const handleToggleComplete = () => {
-  emit("toggle-complete", props.todo);
+const handleToggleComplete = async () => {
+  try {
+    const todoRef = doc(db, "todos", props.todo.id);
+    await updateDoc(todoRef, {
+      isCompleted: !props.todo.isCompleted,
+    });
+    console.log("Todo completion toggled for ID: ", props.todo.id);
+  } catch (e) {
+    console.error("Error toggling todo completion: ", e);
+  }
 };
 
-const handleDelete = () => {
-  emit("delete-todo", props.todo.id);
+const handleDelete = async () => {
+  try {
+    await deleteDoc(doc(db, "todos", props.todo.id));
+    console.log("Todo deleted with ID: ", props.todo.id);
+  } catch (e) {
+    console.error("Error deleting todo: ", e);
+  }
 };
 
 const handleEdit = () => {

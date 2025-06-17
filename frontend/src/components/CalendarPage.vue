@@ -198,14 +198,14 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue';
 import { useAuth } from '../composables/useAuth';
-import axios from 'axios';
+import { db } from '../firebase';
+import { collection, query, where, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 
 const { user } = useAuth();
 
 const todos = ref([]);
-const loading = ref(false);
+const loading = ref(true); // Set to true initially as we'll fetch from Firestore
 const error = ref(null);
-const backendUrl = "http://localhost:3000";
 
 const currentView = ref('month');
 const selectedDate = ref(new Date());
@@ -290,27 +290,38 @@ const weekDates = computed(() => {
 });
 
 // Methods
+// Fetch todos for the logged-in user using real-time listener
 async function fetchTodos() {
-  if (!user.value) {
+  if (!user.value?.userId) {
     todos.value = [];
+    loading.value = false;
     return;
   }
   
   loading.value = true;
   error.value = null;
+  
   try {
-    const token = localStorage.getItem('token');
-    const response = await axios.get(`${backendUrl}/todos`, {
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
+    const todosCollectionRef = collection(db, "todos");
+    // Only fetch todos that belong to the current user
+    const q = query(todosCollectionRef, where("userId", "==", user.value.userId));
+
+    onSnapshot(q, (snapshot) => {
+      const fetchedTodos = [];
+      snapshot.forEach((doc) => {
+        fetchedTodos.push({ id: doc.id, ...doc.data() });
+      });
+      todos.value = fetchedTodos;
+      loading.value = false;
+      console.log("User-specific todos fetched from Firestore:", fetchedTodos);
+    }, (err) => {
+      console.error("Error fetching todos from Firestore:", err);
+      error.value = "Failed to load todos from Firestore.";
+      loading.value = false;
     });
-    todos.value = response.data;
   } catch (err) {
-    console.error("Error fetching todos:", err);
+    console.error("Error setting up todos listener:", err);
     error.value = "Failed to load todos.";
-    todos.value = [];
-  } finally {
     loading.value = false;
   }
 }
@@ -439,22 +450,13 @@ async function handleDrop(event, dateKey) {
 
 async function updateTaskDueDate(taskId, newDueDate) {
   try {
-    const token = localStorage.getItem('token');
-    const response = await axios.patch(`${backendUrl}/todos/${taskId}`, {
+    const todoRef = doc(db, "todos", taskId);
+    await updateDoc(todoRef, {
       dueDate: newDueDate
-    }, {
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
     });
-    
-    // Update local state
-    const index = todos.value.findIndex(t => t.id === taskId);
-    if (index !== -1) {
-      todos.value[index].dueDate = response.data.dueDate;
-    }
+    console.log("Task due date updated in Firestore for ID:", taskId);
   } catch (err) {
-    console.error("Error updating task due date:", err);
+    console.error("Error updating task due date in Firestore:", err);
     error.value = "Failed to update task date.";
   }
 }
@@ -470,24 +472,14 @@ function closeTaskDetail() {
 
 async function toggleTaskComplete(task) {
   try {
-    const token = localStorage.getItem('token');
-    const response = await axios.patch(`${backendUrl}/todos/${task.id}`, {
+    const todoRef = doc(db, "todos", task.id);
+    await updateDoc(todoRef, {
       isCompleted: !task.isCompleted
-    }, {
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
     });
-    
-    // Update local state
-    const index = todos.value.findIndex(t => t.id === task.id);
-    if (index !== -1) {
-      todos.value[index].isCompleted = response.data.isCompleted;
-    }
-    
+    console.log("Task completion toggled in Firestore for ID:", task.id);
     closeTaskDetail();
   } catch (err) {
-    console.error("Error toggling task completion:", err);
+    console.error("Error toggling task completion in Firestore:", err);
     error.value = "Failed to update task status.";
   }
 }

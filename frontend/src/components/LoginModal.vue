@@ -185,27 +185,55 @@ const handleSubmit = async () => {
   nameError.value = "";
   confirmPasswordError.value = "";
 
-  const userData = {
-    email: email.value.trim(),
-    password: password.value,
-  };
-
-  if (isSignUp.value) {
-    userData.name = name.value.trim();
-    emit("signup", userData);
-  } else {
-    emit("login", userData);
+  try {
+    if (isSignUp.value) {
+      await emit("signup", {
+        email: email.value.trim(),
+        password: password.value,
+        name: name.value.trim()
+      });
+    } else {
+      await emit("login", {
+        email: email.value.trim(),
+        password: password.value
+      });
+    }
+    closeModal();
+  } catch (error) {
+    handleError(error);
   }
 };
 
 const handleError = (error) => {
-  if (error.message === "Incorrect password") {
-    passwordError.value = "Incorrect password";
-    password.value = "";
-    authError.value = ""; 
-  } else {
-    authError.value = error.message || "An error occurred. Please try again.";
-    passwordError.value = "";
+  console.error("Authentication error in LoginModal:", error); // Log the error for debugging
+  // Reset specific input errors first
+  emailError.value = "";
+  passwordError.value = "";
+  nameError.value = "";
+  confirmPasswordError.value = "";
+  authError.value = "";
+
+  // Check for specific Firebase Auth error codes
+  switch (error.message) {
+    case "No user found with this email.":
+      emailError.value = error.message;
+      break;
+    case "Incorrect password.":
+      passwordError.value = error.message;
+      password.value = "";
+      break;
+    case "Invalid email address format.":
+      emailError.value = error.message;
+      break;
+    case "This email address is already in use.":
+      emailError.value = error.message;
+      break;
+    case "Password is too weak.":
+      passwordError.value = error.message;
+      break;
+    default:
+      authError.value = error.message || "An unexpected authentication error occurred. Please try again.";
+      break;
   }
 };
 

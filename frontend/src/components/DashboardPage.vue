@@ -145,15 +145,14 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue';
 import { useAuth } from '../composables/useAuth';
-import axios from 'axios';
-
+import { db } from '../firebase';
+import { collection, query, where, onSnapshot, addDoc, doc, updateDoc } from 'firebase/firestore';
 const { user } = useAuth();
 const userName = computed(() => user.value?.name || 'User');
 
 const todos = ref([]);
-const loading = ref(false);
+const loading = ref(true);
 const error = ref(null);
-const backendUrl = "http://localhost:3000";
 
 const quickTaskTitle = ref('');
 const isAdding = ref(false);
@@ -194,30 +193,32 @@ const productivityTip = computed(() => {
 });
 
 // Fetch todos for the logged-in user
-async function fetchTodos() {
-  if (!user.value) {
+// Fetch todos for the logged-in user using real-time listener
+onMounted(() => {
+  if (!user.value?.userId) {
     todos.value = [];
+    loading.value = false;
     return;
   }
 
-  loading.value = true;
-  error.value = null;
-  try {
-    const token = localStorage.getItem('token');
-    const response = await axios.get(`${backendUrl}/todos`, {
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
+  const todosCollectionRef = collection(db, "todos");
+  // Only fetch todos that belong to the current user
+  const q = query(todosCollectionRef, where("userId", "==", user.value.userId));
+
+  onSnapshot(q, (snapshot) => {
+    const fetchedTodos = [];
+    snapshot.forEach((doc) => {
+      fetchedTodos.push({ id: doc.id, ...doc.data() });
     });
-    todos.value = response.data;
-  } catch (err) {
-    console.error("Error fetching todos:", err);
-    error.value = "Failed to load tasks.";
-    todos.value = [];
-  } finally {
+    todos.value = fetchedTodos;
     loading.value = false;
-  }
-}
+    console.log("User-specific todos fetched from Firestore:", fetchedTodos);
+  }, (err) => {
+    console.error("Error fetching todos from Firestore:", err);
+    error.value = "Failed to load tasks from Firestore.";
+    loading.value = false;
+  });
+});
 
 // Computed properties for task summaries
 const overdueCount = computed(() => {
@@ -343,27 +344,25 @@ const getPriorityText = (dueDate) => {
 // Quick Add Todo function
 const quickAddTodo = async () => {
   if (!quickTaskTitle.value.trim() || isAdding.value) return;
-  
+
   isAdding.value = true;
-  
+
   try {
-    const token = localStorage.getItem('token');
-    const payload = {
+    const newTodo = {
       title: quickTaskTitle.value.trim(),
       description: '',
-      isCompleted: false
+      isCompleted: false,
+      createdAt: new Date().toISOString(),
+      userId: user.value?.userId,
     };
-    
-    const response = await axios.post(`${backendUrl}/todos`, payload, {
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
-    });
-    
-    todos.value.unshift(response.data);
+
+    const todoRef = doc(db, "todos", newTodo.id);
+    await setDoc(todoRef, newTodo);
     quickTaskTitle.value = '';
+    console.log("Quick todo added to Firestore:", newTodo);
   } catch (err) {
-    console.error("Error adding quick todo:", err);
+    console.error("Error adding quick todo to Firestore:", err);
+    error.value = "Failed to add task.";
   } finally {
     isAdding.value = false;
   }
@@ -371,9 +370,9 @@ const quickAddTodo = async () => {
 
 // Drag and Drop functions
 const handleDragStart = (event, todo) => {
+  // Store the entire todo object in the ref
   draggedTodo.value = todo;
   event.dataTransfer.effectAllowed = 'move';
-  event.dataTransfer.setData('text/plain', todo.id);
   
   // Add visual feedback to the dragged item
   event.target.style.opacity = '0.5';
@@ -403,12 +402,6 @@ const handleDrop = async (event, targetZone) => {
   
   const todo = draggedTodo.value;
   let updatePayload = {};
-  
-  const currentStatus = getCurrentTaskStatus(todo);
-  if (currentStatus === targetZone) {
-    draggedTodo.value = null;
-    return;
-  }
   
   // Determine what to update based on the target zone
   switch (targetZone) {
@@ -441,45 +434,15 @@ const handleDrop = async (event, targetZone) => {
     taskElement.style.opacity = '0.5';
   }
   
-  // Update the todo
+  // Update the todo in Firestore
   try {
-    const token = localStorage.getItem('token');
-    
-    if (targetZone === 'completed') {
-      const response = await axios.patch(`${backendUrl}/todos/${todo.id}`, {
-        isCompleted: true
-      }, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      });
-      
-      const index = todos.value.findIndex(t => t.id === todo.id);
-      if (index !== -1) {
-        todos.value[index] = response.data;
-      }
-    } else {
-      const response = await axios.put(`${backendUrl}/todos/${todo.id}`, {
-        title: todo.title,
-        description: todo.description,
-        dueDate: updatePayload.dueDate || todo.dueDate,
-        isCompleted: updatePayload.isCompleted !== undefined ? updatePayload.isCompleted : todo.isCompleted
-      }, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      });
-      
-      const index = todos.value.findIndex(t => t.id === todo.id);
-      if (index !== -1) {
-        todos.value[index] = response.data;
-      }
-    }
-    
+    const todoRef = doc(db, "todos", todo.id);
+    await updateDoc(todoRef, updatePayload);
+    console.log("Todo updated in Firestore:", todo.id, updatePayload);
     draggedTodo.value = null;
   } catch (err) {
-    console.error("Error updating todo:", err);
-    alert('Failed to update task. Please try again.');
+    console.error("Error updating todo in Firestore:", err);
+    error.value = "Failed to update task. Please try again.";
   } finally {
     const taskElement = document.querySelector(`[data-task-id="${todo.id}"]`);
     if (taskElement) {
@@ -502,15 +465,7 @@ const getCurrentTaskStatus = (todo) => {
   return 'upcoming';
 };
 
-// Fetch todos when the component is mounted or user changes
-onMounted(() => {
-  fetchTodos();
-});
 
-// Watch for user changes to refetch todos
-watch(user, () => {
-  fetchTodos();
-});
 
 </script>
 

@@ -78,120 +78,124 @@
   </div>
 </template>
 
-<script>
-import { ref, onMounted } from 'vue';
-import axios from 'axios';
+<script setup>
+import { ref, onMounted, watch } from 'vue';
+import { db } from '../firebase';
+import { collection, query, where, onSnapshot, addDoc, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { v4 as uuidv4 } from 'uuid';
+import { useAuth } from '../composables/useAuth';
 
-export default {
-  name: 'Notes',
-  props: {
-    tasks: {
-      type: Array,
-      required: true
-    }
-  },
-  setup(props) {
-    const notes = ref([]);
-    const showNewNoteForm = ref(false);
-    const editingNote = ref(null);
-    const newNote = ref({
-      title: '',
-      content: '',
-      linkedTaskId: ''
-    });
-
-    const fetchNotes = async () => {
-      try {
-        const token = localStorage.getItem('token');
-        const config = { headers: { Authorization: `Bearer ${token}` } };
-        const response = await axios.get('/api/notes', config);
-        notes.value = Array.isArray(response.data) ? response.data : [];
-      } catch (error) {
-        console.error('Error fetching notes:', error);
-        notes.value = [];
-      }
-    };
-
-    const createNote = async () => {
-      try {
-        const token = localStorage.getItem('token');
-        const config = { headers: { Authorization: `Bearer ${token}` } };
-        const response = await axios.post('/api/notes', newNote.value, config);
-        notes.value.push(response.data);
-        cancelNewNote();
-      } catch (error) {
-        console.error('Error creating note:', error);
-      }
-    };
-
-    const updateNote = async () => {
-      try {
-        const token = localStorage.getItem('token');
-        const config = { headers: { Authorization: `Bearer ${token}` } };
-        const response = await axios.put(`/api/notes/${editingNote.value.id}`, editingNote.value, config);
-        const index = notes.value.findIndex(note => note.id === editingNote.value.id);
-        notes.value[index] = response.data;
-        cancelEdit();
-      } catch (error) {
-        console.error('Error updating note:', error);
-      }
-    };
-
-    const deleteNote = async (noteId) => {
-      try {
-        const token = localStorage.getItem('token');
-        const config = { headers: { Authorization: `Bearer ${token}` } };
-        await axios.delete(`/api/notes/${noteId}`, config);
-        notes.value = notes.value.filter(note => note.id !== noteId);
-      } catch (error) {
-        console.error('Error deleting note:', error);
-      }
-    };
-
-    const editNote = (note) => {
-      editingNote.value = { ...note };
-    };
-
-    const cancelEdit = () => {
-      editingNote.value = null;
-    };
-
-    const cancelNewNote = () => {
-      showNewNoteForm.value = false;
-      newNote.value = {
-        title: '',
-        content: '',
-        linkedTaskId: ''
-      };
-    };
-
-    const getTaskTitle = (taskId) => {
-      const task = props.tasks.find(t => t.id === taskId);
-      return task ? task.title : 'Unknown Task';
-    };
-
-    const formatDate = (dateString) => {
-      const date = new Date(dateString);
-      return isNaN(date.getTime()) ? 'No date available' : date.toLocaleDateString();
-    };
-
-    onMounted(fetchNotes);
-
-    return {
-      notes,
-      showNewNoteForm,
-      editingNote,
-      newNote,
-      createNote,
-      updateNote,
-      deleteNote,
-      editNote,
-      cancelEdit,
-      cancelNewNote,
-      getTaskTitle,
-      formatDate
-    };
+const props = defineProps({
+  tasks: {
+    type: Array,
+    required: true
   }
+});
+
+const { user } = useAuth();
+
+const notes = ref([]);
+const showNewNoteForm = ref(false);
+const editingNote = ref(null);
+const newNote = ref({
+  title: '',
+  content: '',
+  linkedTaskId: ''
+});
+
+// Fetch notes using real-time listener
+onMounted(() => {
+  if (!user.value?.userId) {
+    notes.value = [];
+    return;
+  }
+
+  const notesCollectionRef = collection(db, "notes");
+  const q = query(notesCollectionRef, where("userId", "==", user.value.userId));
+
+  onSnapshot(q, (snapshot) => {
+    const fetchedNotes = [];
+    snapshot.forEach((doc) => {
+      fetchedNotes.push({ id: doc.id, ...doc.data() });
+    });
+    notes.value = fetchedNotes;
+    console.log("User-specific notes fetched from Firestore:", fetchedNotes);
+  }, (err) => {
+    console.error("Error fetching notes from Firestore:", err);
+  });
+});
+
+const createNote = async () => {
+  try {
+    const newNoteId = uuidv4();
+    const noteData = {
+      id: newNoteId,
+      title: newNote.value.title,
+      content: newNote.value.content,
+      linkedTaskId: newNote.value.linkedTaskId || null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      userId: user.value?.userId,
+    };
+    await addDoc(collection(db, "notes"), noteData);
+    cancelNewNote();
+    console.log("New note added with ID: ", newNoteId);
+  } catch (error) {
+    console.error('Error creating note:', error);
+  }
+};
+
+const updateNote = async () => {
+  try {
+    const noteRef = doc(db, "notes", editingNote.value.id);
+    const updatedData = {
+      title: editingNote.value.title,
+      content: editingNote.value.content,
+      linkedTaskId: editingNote.value.linkedTaskId || null,
+      updatedAt: new Date().toISOString(),
+    };
+    await updateDoc(noteRef, updatedData);
+    cancelEdit();
+    console.log("Note updated with ID: ", editingNote.value.id);
+  } catch (error) {
+    console.error('Error updating note:', error);
+  }
+};
+
+const deleteNote = async (noteId) => {
+  try {
+    await deleteDoc(doc(db, "notes", noteId));
+    console.log("Note deleted with ID: ", noteId);
+  } catch (error) {
+    console.error('Error deleting note:', error);
+  }
+};
+
+const editNote = (note) => {
+  editingNote.value = { ...note };
+};
+
+const cancelEdit = () => {
+  editingNote.value = null;
+};
+
+const cancelNewNote = () => {
+  showNewNoteForm.value = false;
+  newNote.value = {
+    title: '',
+    content: '',
+    linkedTaskId: ''
+  };
+};
+
+const getTaskTitle = (taskId) => {
+  const task = props.tasks.find(t => t.id === taskId);
+  return task ? task.title : 'Unknown Task';
+};
+
+const formatDate = (dateString) => {
+  const date = new Date(dateString);
+  return isNaN(date.getTime()) ? 'No date available' : date.toLocaleDateString();
 };
 </script>
 

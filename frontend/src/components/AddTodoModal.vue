@@ -65,6 +65,10 @@
 
 <script setup>
 import { ref, watch } from "vue";
+import { db } from "../firebase";
+import { collection, addDoc, doc, setDoc, updateDoc } from "firebase/firestore";
+import { v4 as uuidv4 } from "uuid";
+import { useAuth } from "../composables/useAuth";
 
 const props = defineProps({
   showModal: {
@@ -77,7 +81,9 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(["close-modal", "add-todo", "edit-todo"]);
+const emit = defineEmits(["close-modal"]);
+
+const { user } = useAuth();
 
 const newTodoTitle = ref("");
 const newTodoDescription = ref("");
@@ -90,13 +96,11 @@ watch(
   (newValue) => {
     if (newValue) {
       if (props.todo) {
-        // Edit mode
         newTodoTitle.value = props.todo.title;
         newTodoDescription.value = props.todo.description || "";
         newTodoDueDate.value = props.todo.dueDate || "";
         newTodoPriority.value = props.todo.priority || "low";
       } else {
-        // Add mode
         newTodoTitle.value = "";
         newTodoDescription.value = "";
         newTodoDueDate.value = "";
@@ -107,24 +111,36 @@ watch(
   }
 );
 
-const handleSubmit = () => {
+const handleSubmit = async () => {
   titleError.value = "";
   if (!newTodoTitle.value.trim()) {
     titleError.value = "Title is required";
     return;
   }
 
-  const payload = {
+  const todoData = {
     title: newTodoTitle.value.trim(),
     description: newTodoDescription.value.trim() || null,
     dueDate: newTodoDueDate.value || null,
     priority: newTodoPriority.value,
+    createdAt: new Date().toISOString(),
+    isCompleted: props.todo ? props.todo.isCompleted : false,
+    userId: user.value?.userId,
   };
 
-  if (props.todo) {
-    emit("edit-todo", { ...payload, isCompleted: props.todo.isCompleted });
-  } else {
-    emit("add-todo", payload);
+  try {
+    if (props.todo) {
+      // Edit mode
+      const todoRef = doc(db, "todos", props.todo.id);
+      await updateDoc(todoRef, todoData);
+    } else {
+      const newTodoId = uuidv4();
+      const todoRef = doc(db, "todos", newTodoId);
+      await setDoc(todoRef, { ...todoData, id: newTodoId });
+    }
+    closeModal();
+  } catch (e) {
+    console.error("Error adding/updating document: ", e);
   }
 };
 
