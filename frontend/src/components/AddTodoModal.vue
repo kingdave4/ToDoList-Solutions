@@ -50,6 +50,49 @@
           </select>
         </div>
 
+        <!-- Subtasks Section -->
+        <div class="form-group">
+          <label class="subtasks-label">Subtasks / Checklist</label>
+          <div class="subtasks-container">
+            <div v-for="(subtask, index) in subtasks" :key="subtask.id" class="subtask-item">
+              <div class="subtask-input-container">
+                <input
+                  type="text"
+                  v-model="subtask.title"
+                  placeholder="Enter subtask..."
+                  class="subtask-input"
+                  @blur="updateSubtask(index)"
+                />
+                <button
+                  type="button"
+                  @click="removeSubtask(index)"
+                  class="remove-subtask-btn"
+                  title="Remove subtask"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+            <button
+              type="button"
+              @click="addSubtask"
+              class="add-subtask-btn"
+            >
+              + Add Subtask
+            </button>
+          </div>
+          <div v-if="subtasks.length > 0" class="subtask-options">
+            <label class="checkbox-label">
+              <input
+                type="checkbox"
+                v-model="autoCompleteOnAllSubtasks"
+                class="checkbox-input"
+              />
+              <span class="checkbox-text">Auto-complete main task when all subtasks are done</span>
+            </label>
+          </div>
+        </div>
+
         <div class="modal-actions">
           <button type="submit" class="form-button create-button">
             {{ todo ? 'Save Changes' : 'Create' }}
@@ -91,6 +134,30 @@ const newTodoDueDate = ref("");
 const newTodoPriority = ref("low");
 const titleError = ref("");
 
+// Subtasks management
+const subtasks = ref([]);
+const autoCompleteOnAllSubtasks = ref(true);
+
+const addSubtask = () => {
+  subtasks.value.push({
+    id: uuidv4(),
+    title: "",
+    isCompleted: false,
+    createdAt: new Date().toISOString()
+  });
+};
+
+const removeSubtask = (index) => {
+  subtasks.value.splice(index, 1);
+};
+
+const updateSubtask = (index) => {
+  const subtask = subtasks.value[index];
+  if (!subtask.title.trim()) {
+    removeSubtask(index);
+  }
+};
+
 watch(
   () => props.showModal,
   (newValue) => {
@@ -100,11 +167,15 @@ watch(
         newTodoDescription.value = props.todo.description || "";
         newTodoDueDate.value = props.todo.dueDate || "";
         newTodoPriority.value = props.todo.priority || "low";
+        subtasks.value = props.todo.subtasks ? [...props.todo.subtasks] : [];
+        autoCompleteOnAllSubtasks.value = props.todo.autoCompleteOnAllSubtasks !== false;
       } else {
         newTodoTitle.value = "";
         newTodoDescription.value = "";
         newTodoDueDate.value = "";
         newTodoPriority.value = "low";
+        subtasks.value = [];
+        autoCompleteOnAllSubtasks.value = true;
       }
       titleError.value = "";
     }
@@ -118,6 +189,8 @@ const handleSubmit = async () => {
     return;
   }
 
+  const validSubtasks = subtasks.value.filter(subtask => subtask.title.trim());
+
   const todoData = {
     title: newTodoTitle.value.trim(),
     description: newTodoDescription.value.trim() || null,
@@ -126,6 +199,8 @@ const handleSubmit = async () => {
     createdAt: new Date().toISOString(),
     isCompleted: props.todo ? props.todo.isCompleted : false,
     userId: user.value?.userId,
+    subtasks: validSubtasks,
+    autoCompleteOnAllSubtasks: autoCompleteOnAllSubtasks.value,
   };
 
   try {
@@ -169,7 +244,9 @@ const closeModal = () => {
   border-radius: 8px;
   border: 1px solid #444;
   width: 90%;
-  max-width: 500px;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
 }
 
@@ -250,29 +327,145 @@ const closeModal = () => {
   color: #ff8a8a;
   font-size: 0.85em;
   margin-top: 5px;
-  min-height: 1.2em;
+  margin-bottom: 0;
 }
 
-input[type="date"].form-input:invalid {
-  color: #888;
-}
-input[type="date"].form-input {
-  appearance: none;
-  -webkit-appearance: none;
+/* Subtasks Styles */
+.subtasks-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px !important;
 }
 
-.form-button {
-  padding: 12px 20px;
+.subtasks-label::before {
+  content: "📋";
+  font-size: 1.1em;
+}
+
+.subtasks-container {
+  background-color: #2a2a2a;
+  border: 1px solid #444;
+  border-radius: 6px;
+  padding: 15px;
+  margin-bottom: 10px;
+}
+
+.subtask-item {
+  margin-bottom: 10px;
+}
+
+.subtask-item:last-child {
+  margin-bottom: 0;
+}
+
+.subtask-input-container {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.subtask-input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #555;
+  background-color: #333;
+  color: #e0e0e0;
+  border-radius: 4px;
+  font-size: 0.9em;
+}
+
+.subtask-input:focus {
+  outline: none;
+  border-color: #42b983;
+}
+
+.subtask-input::placeholder {
+  color: #999;
+}
+
+.remove-subtask-btn {
+  background-color: #ff6b6b;
+  color: white;
   border: none;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.3s ease;
+}
+
+.remove-subtask-btn:hover {
+  background-color: #ff5252;
+}
+
+.add-subtask-btn {
   background-color: #42b983;
   color: white;
+  border: none;
   border-radius: 4px;
+  padding: 8px 16px;
+  font-size: 0.9em;
   cursor: pointer;
   transition: background-color 0.3s ease;
-  font-size: 1em;
-  white-space: nowrap;
+  width: 100%;
 }
+
+.add-subtask-btn:hover {
+  background-color: #369870;
+}
+
+.subtask-options {
+  margin-top: 10px;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 0.9em;
+  color: #ccc;
+}
+
+.checkbox-input {
+  accent-color: #42b983;
+  width: 16px;
+  height: 16px;
+}
+
+.checkbox-text {
+  user-select: none;
+}
+
+/* Form Button Styles */
+.form-button {
+  background-color: #42b983;
+  color: white;
+  border: 1px solid #42b983;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9em;
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
 .form-button:hover {
-  background-color: #36a476;
+  background-color: #369870;
+  border-color: #369870;
+}
+
+.create-button {
+  background-color: #42b983;
+  border-color: #42b983;
+}
+
+.create-button:hover {
+  background-color: #369870;
+  border-color: #369870;
 }
 </style>

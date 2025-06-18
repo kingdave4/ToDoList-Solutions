@@ -124,7 +124,7 @@ const loginModalRef = ref(null);
 
 // Auth state from composable
 const { user, isAuthenticated, login, signup, logout, initAuth } = useAuth();
-const currentView = ref('dashboard'); // 'dashboard' or 'todos'
+const currentView = ref('dashboard');
 
 const currentFilter = ref("all");
 const sortBy = ref("createdAt");

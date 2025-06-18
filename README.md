@@ -1,112 +1,202 @@
 # Todo Application
 
-This is a simple Todo application with a frontend built using Vue 3 and Vite, and a backend built using Node.js and Express.
+A full-stack Todo application with Vue 3 frontend and Node.js backend, featuring user authentication and task management.
 
-## Project Overview
+## ✨ Features
 
-The application allows users to manage a list of tasks (todos). Key features include:
+- 📝 Create, edit, and delete todos
+- ✅ Mark tasks as complete/incomplete
+- 🔐 User authentication (register/login)
+- 🎨 Modern Vue 3 + Vite frontend
+- 🚀 Express.js backend API
+- 🐳 Docker support
 
-- Creating, viewing, marking as complete, and deleting todos.
-- User authentication (registration and login).
+## 🚀 Quick Start
 
-## How to Run Locally
+### Option 1: Docker (Recommended)
 
-To run this project on your local machine, follow these steps:
+**Prerequisites:** Docker and Docker Compose installed
 
-### Prerequisites
+1. **Clone the repository:**
 
-- Node.js and npm (or yarn) installed.
+   ```bash
+   git clone <repository_url>
+   cd ToDoList-Solutions
+   ```
 
-### 1. Clone the Repository
+2. **Run with Docker Compose:**
 
-If you haven't already, clone the repository from GitHub:
+   ```bash
+   docker compose up --build
+   ```
+
+3. **Access the application:**
+   - Frontend: http://localhost
+   - Backend API: http://localhost:3000
+
+### Option 2: Local Development
+
+**Prerequisites:** Node.js (v16+) and npm installed
+
+#### Backend Setup
+
+1. **Navigate to backend and install dependencies:**
+
+   ```bash
+   cd backend
+   npm install
+   ```
+
+2. **Create environment file (optional but recommended):**
+
+   ```bash
+   # Create .env file in backend directory
+   echo "JWT_SECRET=your_secure_jwt_secret_here" > .env
+   echo "PORT=3000" >> .env
+   ```
+
+3. **Start the backend server:**
+   ```bash
+   npm start
+   # or for development
+   node server.js
+   ```
+   Backend runs at: http://localhost:3000
+
+#### Frontend Setup
+
+1. **Open new terminal and navigate to frontend:**
+
+   ```bash
+   cd frontend
+   npm install
+   ```
+
+2. **Start the development server:**
+   ```bash
+   npm run dev
+   ```
+   Frontend runs at: http://localhost:5173
+
+## 🐳 Docker Instructions
+
+### Full Application (Backend + Frontend)
 
 ```bash
-git clone <repository_url>
+# Build and run both services
+docker compose up --build
+
+# Run in background
+docker compose up -d --build
+
+# Stop services
+docker compose down
 ```
 
-Replace `<repository_url>` with the actual URL of the GitHub repository.
+### Individual Services
 
-### 2. Backend Setup
-
-Navigate to the `backend` directory, install dependencies, and start the server:
+#### Backend Only
 
 ```bash
 cd backend
-npm install
+docker build -t todo-backend .
+docker run -p 3000:3000 todo-backend
 ```
 
-Create a `.env` file in the `backend` directory with the following content:
-
-```
-JWT_SECRET=your_jwt_secret_key_here
-ADMIN_USERNAME=admin
-ADMIN_PASSWORD=adminpass
-```
-
-**Note:** Replace `your_jwt_secret_key_here` with a strong, unique secret.
-
-Start the backend server:
+#### Frontend Only
 
 ```bash
-node server.js
+cd frontend
+docker build -t todo-frontend .
+docker run -p 80:80 todo-frontend
 ```
 
-The backend API will be running at `http://localhost:3000`.
+## 🧪 Testing
 
-### 3. Frontend Setup
-
-Open a new terminal, navigate to the `frontend` directory, install dependencies, and start the development server:
+Run backend tests:
 
 ```bash
-cd ../frontend
-npm install
-npm run dev
+cd backend
+npm test
 ```
 
-Open your browser and navigate to the URL provided by Vite (e.g., `http://localhost:5173`).
+## 🔧 Configuration
 
-## How to Run with Docker
+### Environment Variables
 
-To run this project using Docker, ensure you have Docker installed and running on your machine.
+The backend uses these optional environment variables:
 
-1.  Navigate to the project root directory (where the `docker-compose.yml` file is located).
-2.  Run the following command to build and start the application containers:
+| Variable     | Default             | Description                                   |
+| ------------ | ------------------- | --------------------------------------------- |
+| `PORT`       | `3000`              | Backend server port                           |
+| `JWT_SECRET` | `"your-secret-key"` | JWT signing secret (⚠️ Change in production!) |
 
-    ```bash
-    docker compose up --build
-    ```
+### Security Note
 
-3.  The frontend will be accessible at `http://localhost`.
+⚠️ **Important:** The default JWT secret is insecure. Always set a strong `JWT_SECRET` in production:
 
-## How to Test (Backend)
+```bash
+# Generate a secure secret
+node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
+```
 
-To run the backend test cases, follow these steps:
+## 📁 Project Structure
 
-1. Navigate to the `backend` directory:
-   ```bash
-   cd backend
-   ```
-2. Run the tests using Jest:
-   ```bash
-   npm test
-   ```
-   This will execute the API endpoint tests located in the `tests` directory.
+```
+ToDoList-Solutions/
+├── backend/                 # Express.js API
+│   ├── routes/             # API routes
+│   ├── middleware/         # Auth middleware
+│   ├── tests/             # Test files
+│   └── server.js          # Entry point
+├── frontend/              # Vue 3 frontend
+│   ├── src/
+│   │   ├── components/    # Vue components
+│   │   └── composables/   # Vue composables
+│   └── public/
+├── docker-compose.yml     # Multi-service setup
+└── README.md
+```
 
-## Design Choices
+## 🏗️ Architecture & Design
 
-### Authentication
-- **JWT (JSON Web Tokens):** Used for secure authentication and authorization. Tokens are issued upon successful login and must be included in subsequent requests to protected routes.
-- **Bcrypt:** Passwords are hashed using bcrypt before being stored, ensuring sensitive user data is protected.
-- **Middleware:** Authentication middleware (`backend/middleware/auth.js`) is used to verify JWTs and protect routes.
+### Backend
 
-- **Backend:**
-  - **Framework:** Express.js was chosen for its simplicity, flexibility, and wide adoption in the Node.js ecosystem, making it suitable for building RESTful APIs quickly.
-  - **Data Persistence:** A simple `todos.json` file is used for storing data. This keeps the setup minimal and avoids the need for a database for this example project. For a production application, a proper database (e.g., PostgreSQL, MongoDB) would be recommended. The `dataService.js` module abstracts the file read/write operations.
-  - **Routing:** Express Router is used (`routes/todos.js`, `routes/auth.js`) to organize the API endpoints logically.
-- **User Management:**
-  - `userService.js`: Handles user-related operations, including creating new users and validating credentials.
-  - `auth.js`: Manages JWT token generation and verification.
-- **Testing Strategy (Backend):**
-  - **Framework:** Jest is used as the test runner, along with `supertest` for making HTTP requests to the API endpoints during testing.
-  - **Approach:** Integration tests are written to cover the API endpoints directly. The `dataService` and `userService` modules are mocked using `jest.mock()` to isolate the route handlers from the actual file system during tests, allowing for predictable and controlled test scenarios. Tests cover success cases, error handling (e.g., 404 Not Found, 400 Bad Request, 401 Unauthorized), and edge cases (e.g., missing data, invalid tokens).
+- **Framework:** Express.js for RESTful API
+- **Authentication:** JWT with bcrypt password hashing
+- **Data Storage:** JSON file (development) - easily replaceable with database
+- **Testing:** Jest + Supertest for API testing
+
+### Frontend
+
+- **Framework:** Vue 3 with Composition API
+- **Build Tool:** Vite for fast development
+- **Styling:** Modern CSS with responsive design
+- **State Management:** Vue composables for auth state
+
+### Security Features
+
+- Password hashing with bcrypt
+- JWT token-based authentication
+- Protected API routes with middleware
+- CORS configuration for cross-origin requests
+
+## 🔗 API Endpoints
+
+| Method | Endpoint         | Description       |
+| ------ | ---------------- | ----------------- |
+| `POST` | `/auth/register` | User registration |
+| `POST` | `/auth/login`    | User login        |
+| `GET`  | `/`              | Health check      |
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Run tests
+5. Submit a pull request
+
+## 📄 License
+
+This project is open source and available under the [MIT License](LICENSE).
