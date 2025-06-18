@@ -98,7 +98,12 @@
                @dragend="handleDragEnd">
             <div class="task-info">
               <span class="task-title">{{ task.title }}</span>
-              <span class="task-due">Due: {{ formatDate(task.dueDate) }}</span>
+              <div class="task-meta">
+                <span class="task-due">Due: {{ formatDate(task.dueDate) }}</span>
+                <span v-if="task.subtasks && task.subtasks.length > 0" class="subtask-progress">
+                  📋 {{ getCompletedSubtasksCount(task) }}/{{ task.subtasks.length }} subtasks
+                </span>
+              </div>
             </div>
             <div class="task-priority" :class="getPriorityClass(task.dueDate)">
               {{ getPriorityText(task.dueDate) }}
@@ -146,7 +151,8 @@
 import { ref, computed, onMounted, watch } from 'vue';
 import { useAuth } from '../composables/useAuth';
 import { db } from '../firebase';
-import { collection, query, where, onSnapshot, addDoc, doc, updateDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, addDoc, doc, updateDoc, setDoc } from 'firebase/firestore';
+import { v4 as uuidv4 } from 'uuid';
 const { user } = useAuth();
 const userName = computed(() => user.value?.name || 'User');
 
@@ -293,6 +299,12 @@ const formatDate = (dateString) => {
   return new Date(dateString).toLocaleDateString(undefined, options);
 };
 
+// Helper to get completed subtasks count
+const getCompletedSubtasksCount = (task) => {
+  if (!task.subtasks) return 0;
+  return task.subtasks.filter(subtask => subtask.isCompleted).length;
+};
+
 // Helper to get priority class based on due date
 const getPriorityClass = (dueDate) => {
   if (!dueDate) return 'no-priority';
@@ -348,15 +360,19 @@ const quickAddTodo = async () => {
   isAdding.value = true;
 
   try {
+    const newTodoId = uuidv4();
     const newTodo = {
+      id: newTodoId,
       title: quickTaskTitle.value.trim(),
       description: '',
       isCompleted: false,
       createdAt: new Date().toISOString(),
       userId: user.value?.userId,
+      subtasks: [],
+      autoCompleteOnAllSubtasks: true,
     };
 
-    const todoRef = doc(db, "todos", newTodo.id);
+    const todoRef = doc(db, "todos", newTodoId);
     await setDoc(todoRef, newTodo);
     quickTaskTitle.value = '';
     console.log("Quick todo added to Firestore:", newTodo);
@@ -741,9 +757,21 @@ const getCurrentTaskStatus = (todo) => {
   font-size: 1em;
 }
 
+.task-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
 .task-due {
   color: #999;
   font-size: 0.85em;
+}
+
+.subtask-progress {
+  color: #42b983;
+  font-size: 0.75em;
+  font-weight: 500;
 }
 
 .task-priority {

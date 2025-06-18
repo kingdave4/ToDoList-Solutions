@@ -8,6 +8,40 @@
         </span>
       </div>
       <p v-if="todo.description" class="todo-description">{{ todo.description }}</p>
+      
+      <!-- Subtasks Section -->
+      <div v-if="todo.subtasks && todo.subtasks.length > 0" class="subtasks-section">
+        <div class="subtasks-header">
+          <span class="subtasks-title">📋 Subtasks</span>
+          <span class="subtasks-progress">{{ completedSubtasksCount }}/{{ todo.subtasks.length }} completed</span>
+        </div>
+        <div class="subtasks-list">
+          <div 
+            v-for="(subtask, index) in todo.subtasks" 
+            :key="subtask.id" 
+            class="subtask-item"
+            :class="{ 'completed': subtask.isCompleted }"
+          >
+            <label class="subtask-checkbox-label">
+              <input
+                type="checkbox"
+                :checked="subtask.isCompleted"
+                @change="toggleSubtask(index)"
+                class="subtask-checkbox"
+                :disabled="todo.isCompleted"
+              />
+              <span class="subtask-text">{{ subtask.title }}</span>
+            </label>
+          </div>
+        </div>
+        <div class="progress-bar">
+          <div 
+            class="progress-fill" 
+            :style="{ width: progressPercentage + '%' }"
+          ></div>
+        </div>
+      </div>
+
       <div class="todo-meta-info">
         <span v-if="todo.dueDate">Due: {{ formatDate(todo.dueDate) }}</span>
         <span>Added: {{ formatDate(todo.createdAt) }}, {{ formatTime(todo.createdAt) }}</span>
@@ -24,6 +58,7 @@
 </template>
 
 <script setup>
+import { computed } from "vue";
 import { db } from "../firebase";
 import { doc, updateDoc, deleteDoc } from "firebase/firestore";
 
@@ -35,6 +70,22 @@ const props = defineProps({
 });
 
 const emit = defineEmits(["edit-todo"]);
+
+// Computed properties for subtasks
+const completedSubtasksCount = computed(() => {
+  if (!props.todo.subtasks) return 0;
+  return props.todo.subtasks.filter(subtask => subtask.isCompleted).length;
+});
+
+const progressPercentage = computed(() => {
+  if (!props.todo.subtasks || props.todo.subtasks.length === 0) return 0;
+  return Math.round((completedSubtasksCount.value / props.todo.subtasks.length) * 100);
+});
+
+const allSubtasksCompleted = computed(() => {
+  if (!props.todo.subtasks || props.todo.subtasks.length === 0) return false;
+  return completedSubtasksCount.value === props.todo.subtasks.length;
+});
 
 function formatDate(dateString) {
   if (!dateString) return "";
@@ -62,12 +113,44 @@ function getPriorityText(priority) {
   return 'Low Priority';
 }
 
+const toggleSubtask = async (index) => {
+  try {
+    const updatedSubtasks = [...props.todo.subtasks];
+    updatedSubtasks[index].isCompleted = !updatedSubtasks[index].isCompleted;
+    
+    const todoRef = doc(db, "todos", props.todo.id);
+    const updateData = { subtasks: updatedSubtasks };
+    
+    // Check if auto-completion is enabled and all subtasks are now completed
+    const allCompleted = updatedSubtasks.every(subtask => subtask.isCompleted);
+    if (props.todo.autoCompleteOnAllSubtasks && allCompleted && !props.todo.isCompleted) {
+      updateData.isCompleted = true;
+    }
+    
+    await updateDoc(todoRef, updateData);
+    console.log("Subtask toggled for todo ID: ", props.todo.id);
+  } catch (e) {
+    console.error("Error toggling subtask: ", e);
+  }
+};
+
 const handleToggleComplete = async () => {
   try {
     const todoRef = doc(db, "todos", props.todo.id);
-    await updateDoc(todoRef, {
+    const updateData = {
       isCompleted: !props.todo.isCompleted,
-    });
+    };
+    
+    // If marking as incomplete, also mark all subtasks as incomplete
+    if (props.todo.isCompleted && props.todo.subtasks) {
+      const updatedSubtasks = props.todo.subtasks.map(subtask => ({
+        ...subtask,
+        isCompleted: false
+      }));
+      updateData.subtasks = updatedSubtasks;
+    }
+    
+    await updateDoc(todoRef, updateData);
     console.log("Todo completion toggled for ID: ", props.todo.id);
   } catch (e) {
     console.error("Error toggling todo completion: ", e);
@@ -156,6 +239,91 @@ const handleEdit = () => {
   white-space: pre-wrap;
   word-break: break-word;
 }
+
+/* Subtasks Styles */
+.subtasks-section {
+  margin: 15px 0;
+  padding: 15px;
+  background-color: #333;
+  border-radius: 6px;
+  border-left: 4px solid #42b983;
+}
+
+.subtasks-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.subtasks-title {
+  font-weight: 600;
+  color: #42b983;
+  font-size: 0.95em;
+}
+
+.subtasks-progress {
+  font-size: 0.8em;
+  color: #999;
+  background-color: #444;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.subtasks-list {
+  margin-bottom: 12px;
+}
+
+.subtask-item {
+  margin-bottom: 8px;
+  transition: opacity 0.3s ease;
+}
+
+.subtask-item.completed {
+  opacity: 0.7;
+}
+
+.subtask-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  font-size: 0.9em;
+}
+
+.subtask-checkbox {
+  accent-color: #42b983;
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.subtask-text {
+  color: #ddd;
+  user-select: none;
+  line-height: 1.4;
+}
+
+.subtask-item.completed .subtask-text {
+  text-decoration: line-through;
+  color: #888;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 6px;
+  background-color: #444;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #42b983, #6bcf7f);
+  transition: width 0.3s ease;
+  border-radius: 3px;
+}
+
 .todo-meta-info {
   font-size: 0.85em;
   color: #888;
@@ -224,5 +392,37 @@ const handleEdit = () => {
 }
 .todo-card.completed .priority-badge {
   opacity: 0.7;
+}
+
+/* Completed task subtasks styling */
+.todo-card.completed .subtasks-section {
+  opacity: 0.6;
+}
+
+.todo-card.completed .subtask-checkbox {
+  pointer-events: none;
+}
+
+@media (max-width: 768px) {
+  .todo-card {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .todo-details {
+    margin-right: 0;
+    margin-bottom: 15px;
+  }
+  
+  .todo-actions {
+    align-self: stretch;
+    justify-content: center;
+  }
+  
+  .subtasks-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 5px;
+  }
 }
 </style>
