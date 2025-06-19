@@ -10,11 +10,35 @@
         Completed
       </button>
     </div>
+
+    <!-- Category Filter -->
+    <div class="category-filter">
+      <span>Category:</span>
+      <select v-model="categoryFilterModel" class="sort-select">
+        <option value="">All Categories</option>
+        <option v-for="category in predefinedCategories" :key="category.id" :value="category.id">
+          {{ category.icon }} {{ category.name }}
+        </option>
+      </select>
+    </div>
+
+    <!-- Tag Filter -->
+    <div class="tag-filter">
+      <span>Tag:</span>
+      <select v-model="tagFilterModel" class="sort-select">
+        <option value="">All Tags</option>
+        <option v-for="tag in availableTags" :key="tag.id" :value="tag.id">
+          {{ tag.name }}
+        </option>
+      </select>
+    </div>
+
     <div class="sort-controls">
       <span>Sort by:</span>
       <select v-model="sortByModel" class="sort-select">
         <option value="createdAt">Added Date</option>
         <option value="dueDate">Due Date</option>
+        <option value="priority">Priority</option>
       </select>
       <select v-model="sortDirectionModel" class="sort-select">
         <option value="desc">Newest</option>
@@ -25,12 +49,23 @@
 </template>
 
 <script setup>
-import { computed } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
+import { useAuth } from '../composables/useAuth';
+import { db } from '../firebase';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
 
 const props = defineProps({
   currentFilter: {
     type: String,
     required: true,
+  },
+  categoryFilter: {
+    type: String,
+    default: ""
+  },
+  tagFilter: {
+    type: String,
+    default: ""
   },
   sortBy: {
     type: String,
@@ -42,11 +77,45 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(["update:currentFilter", "update:sortBy", "update:sortDirection"]);
+const emit = defineEmits([
+  "update:currentFilter", 
+  "update:categoryFilter", 
+  "update:tagFilter", 
+  "update:sortBy", 
+  "update:sortDirection"
+]);
 
+const { user, loading } = useAuth();
+
+// Reactive data
+const availableTags = ref([]);
+
+// Predefined categories
+const predefinedCategories = ref([
+  { id: 'work', name: 'Work', icon: '💼', color: '#1e90ff' },
+  { id: 'personal', name: 'Personal', icon: '👤', color: '#ff6b6b' },
+  { id: 'home', name: 'Home', icon: '🏠', color: '#4ecdc4' },
+  { id: 'shopping', name: 'Shopping', icon: '🛒', color: '#45b7d1' },
+  { id: 'health', name: 'Health', icon: '🏥', color: '#96ceb4' },
+  { id: 'finance', name: 'Finance', icon: '💰', color: '#feca57' },
+  { id: 'education', name: 'Education', icon: '📚', color: '#ff9ff3' },
+  { id: 'travel', name: 'Travel', icon: '✈️', color: '#54a0ff' }
+]);
+
+// Computed models
 const filterModel = computed({
   get: () => props.currentFilter,
   set: (value) => emit("update:currentFilter", value),
+});
+
+const categoryFilterModel = computed({
+  get: () => props.categoryFilter,
+  set: (value) => emit("update:categoryFilter", value),
+});
+
+const tagFilterModel = computed({
+  get: () => props.tagFilter,
+  set: (value) => emit("update:tagFilter", value),
 });
 
 const sortByModel = computed({
@@ -57,6 +126,39 @@ const sortByModel = computed({
 const sortDirectionModel = computed({
   get: () => props.sortDirection,
   set: (value) => emit("update:sortDirection", value),
+});
+
+// Load available tags
+const loadAvailableTags = () => {
+  if (!user.value?.userId) return;
+  
+  const tagsRef = collection(db, 'tags');
+  const q = query(tagsRef, where('userId', '==', user.value.userId));
+  
+  onSnapshot(q, (snapshot) => {
+    const tags = [];
+    snapshot.forEach((doc) => {
+      tags.push({ id: doc.id, ...doc.data() });
+    });
+    availableTags.value = tags;
+  }, (error) => {
+    console.error('Error loading tags in TodoControls:', error);
+    if (error.code === 'permission-denied') {
+      console.error('Permission denied: Check Firestore security rules for tags collection');
+    }
+  });
+};
+
+watch([() => user.value?.userId, loading], ([userId, isLoading]) => {
+  if (!isLoading && userId) {
+    loadAvailableTags();
+  }
+}, { immediate: true });
+
+onMounted(() => {
+  if (user.value?.userId && !loading.value) {
+    loadAvailableTags();
+  }
 });
 </script>
 
@@ -73,6 +175,8 @@ const sortDirectionModel = computed({
 }
 
 .filter-controls,
+.category-filter,
+.tag-filter,
 .sort-controls {
   display: flex;
   align-items: center;
