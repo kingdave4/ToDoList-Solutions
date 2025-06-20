@@ -9,6 +9,20 @@
       </div>
       <p v-if="todo.description" class="todo-description">{{ todo.description }}</p>
       
+      <!-- Category and Tags Section -->
+      <div v-if="todo.category || (todo.tags && todo.tags.length > 0)" class="todo-tags-section">
+        <div v-if="todo.category" class="todo-category">
+          <span class="category-badge" :style="{ borderColor: getCategoryColor(todo.category) }">
+            {{ getCategoryIcon(todo.category) }} {{ getCategoryName(todo.category) }}
+          </span>
+        </div>
+        <div v-if="todo.tags && todo.tags.length > 0" class="todo-tags">
+          <span v-for="tag in todo.tags" :key="tag.id || tag" class="tag-badge" :style="{ backgroundColor: getTagColor(tag) }">
+            {{ getTagName(tag) }}
+          </span>
+        </div>
+      </div>
+      
       <!-- Subtasks Section -->
       <div v-if="todo.subtasks && todo.subtasks.length > 0" class="subtasks-section">
         <div class="subtasks-header">
@@ -111,6 +125,40 @@ function getPriorityText(priority) {
   if (priority === 'high') return 'High Priority';
   if (priority === 'medium') return 'Medium Priority';
   return 'Low Priority';
+}
+
+// Categories and Tags helper functions
+const predefinedCategories = {
+  'work': { name: 'Work', icon: '💼', color: '#1e90ff' },
+  'personal': { name: 'Personal', icon: '👤', color: '#ff6b6b' },
+  'home': { name: 'Home', icon: '🏠', color: '#4ecdc4' },
+  'shopping': { name: 'Shopping', icon: '🛒', color: '#45b7d1' },
+  'health': { name: 'Health', icon: '🏥', color: '#96ceb4' },
+  'finance': { name: 'Finance', icon: '💰', color: '#feca57' },
+  'education': { name: 'Education', icon: '📚', color: '#ff9ff3' },
+  'travel': { name: 'Travel', icon: '✈️', color: '#54a0ff' }
+};
+
+function getCategoryIcon(categoryId) {
+  return predefinedCategories[categoryId]?.icon || '📁';
+}
+
+function getCategoryName(categoryId) {
+  return predefinedCategories[categoryId]?.name || categoryId;
+}
+
+function getCategoryColor(categoryId) {
+  return predefinedCategories[categoryId]?.color || '#42b983';
+}
+
+function getTagName(tag) {
+  if (typeof tag === 'string') return tag;
+  return tag?.name || 'Unknown Tag';
+}
+
+function getTagColor(tag) {
+  if (typeof tag === 'string') return '#42b983';
+  return tag?.color || '#42b983';
 }
 
 const toggleSubtask = async (index) => {
@@ -330,6 +378,45 @@ const handleEdit = () => {
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+
+.todo-tags-section {
+  margin: 12px 0;
+}
+
+.todo-category {
+  margin-bottom: 8px;
+}
+
+.category-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border: 1.5px solid;
+  border-radius: 16px;
+  background-color: rgba(255, 255, 255, 0.05);
+  color: #e0e0e0;
+  font-size: 0.85em;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.todo-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tag-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  color: white;
+  font-size: 0.75em;
+  font-weight: 500;
+  text-transform: capitalize;
+  opacity: 0.9;
 }
 
 .todo-actions {

@@ -50,6 +50,45 @@
           </select>
         </div>
 
+        <!-- Category Selection -->
+        <div class="form-group">
+          <label for="modal-todo-category">Category</label>
+          <select
+            id="modal-todo-category"
+            v-model="selectedCategory"
+            class="form-input priority-select"
+          >
+            <option value="">Select a category (optional)</option>
+            <option v-for="category in predefinedCategories" :key="category.id" :value="category.id">
+              {{ category.icon }} {{ category.name }}
+            </option>
+          </select>
+        </div>
+
+        <!-- Tags Selection -->
+        <div class="form-group">
+          <label class="tags-label">🏷️ Tags</label>
+          <div class="tags-selection-container">
+            <div class="selected-tags" v-if="selectedTags.length > 0">
+              <span v-for="tag in selectedTags" :key="tag.id" class="selected-tag" :style="{ backgroundColor: tag.color }">
+                {{ tag.name }}
+                <button type="button" @click="removeTag(tag)" class="remove-tag-btn">×</button>
+              </span>
+            </div>
+            <div class="tags-dropdown">
+              <select v-model="tagToAdd" @change="addSelectedTag" class="form-input">
+                <option value="">Add a tag...</option>
+                <optgroup label="Custom Tags" v-if="availableCustomTags.length > 0">
+                  <option v-for="tag in availableCustomTags" :key="tag.id" :value="tag.id">
+                    {{ tag.name }}
+                  </option>
+                </optgroup>
+              </select>
+            </div>
+            <p class="tags-hint">Select multiple tags to organize your task</p>
+          </div>
+        </div>
+
         <!-- Subtasks Section -->
         <div class="form-group">
           <label class="subtasks-label">Subtasks / Checklist</label>
@@ -107,9 +146,9 @@
 </template>
 
 <script setup>
-import { ref, watch } from "vue";
+import { ref, watch, onMounted, computed } from "vue";
 import { db } from "../firebase";
-import { collection, addDoc, doc, setDoc, updateDoc } from "firebase/firestore";
+import { collection, addDoc, doc, setDoc, updateDoc, query, where, onSnapshot } from "firebase/firestore";
 import { v4 as uuidv4 } from "uuid";
 import { useAuth } from "../composables/useAuth";
 
@@ -126,13 +165,31 @@ const props = defineProps({
 
 const emit = defineEmits(["close-modal"]);
 
-const { user } = useAuth();
+const { user, loading } = useAuth();
 
 const newTodoTitle = ref("");
 const newTodoDescription = ref("");
 const newTodoDueDate = ref("");
 const newTodoPriority = ref("low");
 const titleError = ref("");
+
+// Tags and Categories
+const selectedCategory = ref("");
+const selectedTags = ref([]);
+const tagToAdd = ref("");
+const customTags = ref([]);
+
+// Predefined categories
+const predefinedCategories = ref([
+  { id: 'work', name: 'Work', icon: '💼', color: '#1e90ff' },
+  { id: 'personal', name: 'Personal', icon: '👤', color: '#ff6b6b' },
+  { id: 'home', name: 'Home', icon: '🏠', color: '#4ecdc4' },
+  { id: 'shopping', name: 'Shopping', icon: '🛒', color: '#45b7d1' },
+  { id: 'health', name: 'Health', icon: '🏥', color: '#96ceb4' },
+  { id: 'finance', name: 'Finance', icon: '💰', color: '#feca57' },
+  { id: 'education', name: 'Education', icon: '📚', color: '#ff9ff3' },
+  { id: 'travel', name: 'Travel', icon: '✈️', color: '#54a0ff' }
+]);
 
 // Subtasks management
 const subtasks = ref([]);
@@ -158,6 +215,43 @@ const updateSubtask = (index) => {
   }
 };
 
+// Tags management functions
+const availableCustomTags = computed(() => {
+  return customTags.value.filter(tag => 
+    !selectedTags.value.some(selectedTag => selectedTag.id === tag.id)
+  );
+});
+
+const addSelectedTag = () => {
+  if (!tagToAdd.value) return;
+  
+  const tag = customTags.value.find(t => t.id === tagToAdd.value);
+  if (tag && !selectedTags.value.some(t => t.id === tag.id)) {
+    selectedTags.value.push(tag);
+  }
+  tagToAdd.value = "";
+};
+
+const removeTag = (tagToRemove) => {
+  selectedTags.value = selectedTags.value.filter(tag => tag.id !== tagToRemove.id);
+};
+
+// Load custom tags
+const loadCustomTags = () => {
+  if (!user.value?.userId) return;
+  
+  const tagsRef = collection(db, 'tags');
+  const q = query(tagsRef, where('userId', '==', user.value.userId));
+  
+  onSnapshot(q, (snapshot) => {
+    const tags = [];
+    snapshot.forEach((doc) => {
+      tags.push({ id: doc.id, ...doc.data() });
+    });
+    customTags.value = tags;
+  });
+};
+
 watch(
   () => props.showModal,
   (newValue) => {
@@ -167,6 +261,8 @@ watch(
         newTodoDescription.value = props.todo.description || "";
         newTodoDueDate.value = props.todo.dueDate || "";
         newTodoPriority.value = props.todo.priority || "low";
+        selectedCategory.value = props.todo.category || "";
+        selectedTags.value = props.todo.tags ? [...props.todo.tags] : [];
         subtasks.value = props.todo.subtasks ? [...props.todo.subtasks] : [];
         autoCompleteOnAllSubtasks.value = props.todo.autoCompleteOnAllSubtasks !== false;
       } else {
@@ -174,10 +270,13 @@ watch(
         newTodoDescription.value = "";
         newTodoDueDate.value = "";
         newTodoPriority.value = "low";
+        selectedCategory.value = "";
+        selectedTags.value = [];
         subtasks.value = [];
         autoCompleteOnAllSubtasks.value = true;
       }
       titleError.value = "";
+      tagToAdd.value = "";
     }
   }
 );
@@ -196,6 +295,8 @@ const handleSubmit = async () => {
     description: newTodoDescription.value.trim() || null,
     dueDate: newTodoDueDate.value || null,
     priority: newTodoPriority.value,
+    category: selectedCategory.value || null,
+    tags: selectedTags.value,
     createdAt: new Date().toISOString(),
     isCompleted: props.todo ? props.todo.isCompleted : false,
     userId: user.value?.userId,
@@ -222,6 +323,20 @@ const handleSubmit = async () => {
 const closeModal = () => {
   emit("close-modal");
 };
+
+// Wait for authentication before loading tags
+watch([() => user.value?.userId, loading], ([userId, isLoading]) => {
+  if (!isLoading && userId) {
+    loadCustomTags();
+  }
+}, { immediate: true });
+
+onMounted(() => {
+  // Only load if user is already authenticated
+  if (user.value?.userId && !loading.value) {
+    loadCustomTags();
+  }
+});
 </script>
 
 <style scoped>
@@ -441,6 +556,72 @@ const closeModal = () => {
 
 .checkbox-text {
   user-select: none;
+}
+
+/* Tags and Categories Styles */
+.tags-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px !important;
+}
+
+.tags-selection-container {
+  background-color: #2a2a2a;
+  border: 1px solid #444;
+  border-radius: 6px;
+  padding: 15px;
+}
+
+.selected-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.selected-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 16px;
+  color: white;
+  font-size: 0.85em;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.remove-tag-btn {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+  padding: 0;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s;
+}
+
+.remove-tag-btn:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+.tags-dropdown {
+  margin-bottom: 8px;
+}
+
+.tags-hint {
+  color: #aaa;
+  font-size: 0.85em;
+  margin: 0;
+  font-style: italic;
 }
 
 /* Form Button Styles */

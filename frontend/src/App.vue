@@ -35,6 +35,7 @@
              <button @click="currentView = 'todos'" :class="{ active: currentView === 'todos' }">My Todos</button>
              <button @click="currentView = 'calendar'" :class="{ active: currentView === 'calendar' }">Calendar</button>
              <button @click="currentView = 'notes'" :class="{ active: currentView === 'notes' }">Notes</button>
+             <button @click="currentView = 'tags'" :class="{ active: currentView === 'tags' }">🏷️ Tags Manager</button>
           </div>
         </aside>
 
@@ -51,6 +52,10 @@
              <Notes :tasks="todos" />
           </div>
 
+          <div v-if="currentView === 'tags'">
+            <TagsManager :todos="todos" />
+          </div>
+
           <div v-if="currentView === 'todos'">
             <div class="header-controls">
               <button @click="handleAddTodoClick" class="add-todo-btn">
@@ -58,6 +63,8 @@
               </button>
               <TodoControls
                 v-model:currentFilter="currentFilter"
+                v-model:categoryFilter="categoryFilter"
+                v-model:tagFilter="tagFilter"
                 v-model:sortBy="sortBy"
                 v-model:sortDirection="sortDirection"
               />
@@ -113,6 +120,7 @@ import TodoControls from "./components/TodoControls.vue";
 import DashboardPage from "./components/DashboardPage.vue";
 import CalendarPage from "./components/CalendarPage.vue";
 import Notes from "./components/Notes.vue";
+import TagsManager from "./components/TagsManager.vue";
 
 const todos = ref([]);
 const loading = ref(false);
@@ -127,6 +135,8 @@ const { user, isAuthenticated, login, signup, logout, initAuth } = useAuth();
 const currentView = ref('dashboard');
 
 const currentFilter = ref("all");
+const categoryFilter = ref("");
+const tagFilter = ref("");
 const sortBy = ref("createdAt");
 const sortDirection = ref("desc");
 
@@ -307,12 +317,30 @@ watch(currentView, (newView) => {
 const filteredAndSortedTodos = computed(() => {
   let result = [...todos.value];
 
+  // Filter by completion status
   if (currentFilter.value === "incomplete") {
     result = result.filter((todo) => !todo.isCompleted);
   } else if (currentFilter.value === "completed") {
     result = result.filter((todo) => todo.isCompleted);
   }
 
+  // Filter by category
+  if (categoryFilter.value) {
+    result = result.filter((todo) => todo.category === categoryFilter.value);
+  }
+
+  // Filter by tag
+  if (tagFilter.value) {
+    result = result.filter((todo) => {
+      if (!todo.tags || todo.tags.length === 0) return false;
+      return todo.tags.some(tag => {
+        if (typeof tag === 'string') return tag === tagFilter.value;
+        return tag.id === tagFilter.value;
+      });
+    });
+  }
+
+  // Sort results
   result.sort((a, b) => {
     let valA, valB;
 
@@ -327,6 +355,10 @@ const filteredAndSortedTodos = computed(() => {
         : sortDirection.value === "asc"
         ? Infinity
         : -Infinity;
+    } else if (sortBy.value === "priority") {
+      const priorityOrder = { high: 3, medium: 2, low: 1 };
+      valA = priorityOrder[a.priority] || 1;
+      valB = priorityOrder[b.priority] || 1;
     } else {
       valA = new Date(a.createdAt);
       valB = new Date(b.createdAt);
