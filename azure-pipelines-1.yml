@@ -1,0 +1,66 @@
+trigger:
+- main
+
+variables:
+  dockerRegistryServiceConnection: 'ACR–TodoApp'
+  kubernetesServiceConnection: 'AKS–TodoApp'
+  imageRepositoryBackend: 'todolist-backend'
+  imageRepositoryFrontend: 'todolist-frontend'
+  dockerfilePathBackend: '$(Build.SourcesDirectory)/backend/Dockerfile'
+  dockerfilePathFrontend: '$(Build.SourcesDirectory)/frontend/Dockerfile'
+  tag: '$(Build.BuildId)'
+  vmImageName: 'ubuntu-latest'
+
+stages:
+
+# 1) Build & Push both images
+- stage: Build
+  displayName: Build and Push Docker images
+  jobs:
+  - job: Build
+    pool:
+      vmImage: $(vmImageName)
+    steps:
+    - task: Docker@2
+      displayName: Build & push backend
+      inputs:
+        containerRegistry: $(dockerRegistryServiceConnection)
+        repository: $(imageRepositoryBackend)
+        command: 'buildAndPush'
+        Dockerfile: $(dockerfilePathBackend)
+        tags: |
+          $(tag)
+
+    - task: Docker@2
+      displayName: Build & push frontend
+      inputs:
+        containerRegistry: $(dockerRegistryServiceConnection)
+        repository: $(imageRepositoryFrontend)
+        command: 'buildAndPush'
+        Dockerfile: $(dockerfilePathFrontend)
+        tags: |
+          $(tag)
+
+# 2) Deploy to AKS using KubernetesManifest task
+- stage: Deploy
+  dependsOn: Build
+  jobs:
+  - job: DeployToAKS
+    pool: ubuntu-latest
+    steps:
+    - checkout: self
+
+    - task: KubernetesManifest@1
+      displayName: Deploy Manifests to AKS
+      inputs:
+        kubernetesServiceConnection: $(kubernetesServiceConnection)
+        namespace: default
+        manifests: |
+          $(Build.SourcesDirectory)/k8s/backend-deployment.yaml
+          $(Build.SourcesDirectory)/k8s/backend-service.yaml
+          $(Build.SourcesDirectory)/k8s/frontend-deployment.yaml
+          $(Build.SourcesDirectory)/k8s/frontend-service.yaml
+        containers: |
+          $(dockerRegistryServiceConnection)/$(imageRepositoryBackend):$(tag)
+          $(dockerRegistryServiceConnection)/$(imageRepositoryFrontend):$(tag)
+
