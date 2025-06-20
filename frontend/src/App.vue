@@ -390,12 +390,12 @@ body {
 }
 
 .main-container {
-  max-width: 1200px; /* Increased max-width for sidebar layout */
-  margin: 0 auto; /* Center the container */
-  padding: 0 20px; /* Horizontal padding */
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px; 
   display: flex;
   flex-direction: column;
-  min-height: 100vh; /* Ensure container takes at least full viewport height */
+  min-height: 100vh; 
 }
 
 .app-header {
