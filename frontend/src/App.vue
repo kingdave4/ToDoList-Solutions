@@ -402,12 +402,12 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px 0; /* Padding top and bottom */
-  border-bottom: 1px solid #eee; /* Subtle separator */
+  padding: 20px 0;
+  border-bottom: 1px solid #eee;
 }
 
 .app-title {
-  font-size: 1.8em; /* Slightly smaller header title */
+  font-size: 1.8em;
   margin: 0;
   color: #333;
   font-weight: bold;
