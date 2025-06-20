@@ -463,7 +463,7 @@ body {
 }
 
 .hero-section h1 {
-  font-size: 3em; /* Large hero title */
+  font-size: 3em;
   margin-bottom: 15px;
   color: #333;
 }
